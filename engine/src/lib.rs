@@ -104,8 +104,9 @@ pub mod scratch;
 /// resource manager's job; see [`resources`].
 pub mod gfx;
 
-/// The software renderer's core, landed in stages: currently the
-/// indexed framebuffer and the gamma remap tables.
+/// The software renderer's core: the indexed framebuffer, the
+/// low-level column/span drawers (`R_DrawColumn`/`R_DrawSpan` families),
+/// the `zlight`/`scalelight` tables and the gamma remap tables.
 ///
 /// Works on raw palette indices; the palette is applied at output time
 /// only ([`render::IndexedFramebuffer::to_rgba_bytes`]).
