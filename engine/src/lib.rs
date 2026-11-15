@@ -104,6 +104,13 @@ pub mod scratch;
 /// resource manager's job; see [`resources`].
 pub mod gfx;
 
+/// The software renderer's core, landed in stages: currently the
+/// indexed framebuffer and the gamma remap tables.
+///
+/// Works on raw palette indices; the palette is applied at output time
+/// only ([`render::IndexedFramebuffer::to_rgba_bytes`]).
+pub mod render;
+
 /// BSP tree traversal and wall clipping, ported from `r_bsp.c`/`r_main.c`.
 ///
 /// Pure math and state machines over [`map::Node`] and column spans; the
