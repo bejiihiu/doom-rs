@@ -10,7 +10,6 @@
 //! the port progresses; the intended layout is:
 //!
 //! - `fixed` — 16.16 fixed-point arithmetic used throughout the engine.
-//! - `math` — angle math and other numeric helpers.
 //! - `rng` — deterministic pseudo-random number generation.
 //! - `errors` — engine error types.
 //! - `config` — startup configuration handling.
@@ -36,6 +35,7 @@
 
 pub mod config;
 pub mod errors;
+pub mod fixed;
 
 /// Version of the engine crate. Re-exported for binaries and tools so they
 /// can report which engine they were built against.
