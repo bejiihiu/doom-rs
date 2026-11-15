@@ -18,6 +18,7 @@
 //! | [`lighting`] | `zlight`/`scalelight` tables, colormap level selection |
 //! | [`gamma`]    | the five gamma remap tables                             |
 //! | [`planes`]   | visplane bookkeeping (`R_FindPlane`/`R_CheckPlane`)     |
+//! | [`plane`]    | flat span renderer (`R_DrawPlanes`/`R_MapPlane`)      |
 //! | [`textures`] | flat composited wall textures + lazy composite cache    |
 //! | [`wall`]     | `R_StoreWallRange`/`R_RenderSegLoop`/masked segs         |
 
@@ -25,6 +26,7 @@ mod column;
 mod framebuffer;
 mod gamma;
 mod lighting;
+mod plane;
 mod planes;
 mod span;
 mod textures;
@@ -40,6 +42,7 @@ pub use lighting::{
     DISTMAP, LIGHTLEVELS, LIGHTSCALESHIFT, LIGHTSEGSHIFT, LIGHTZSHIFT, LightTables, MAXLIGHTSCALE,
     MAXLIGHTZ, NUMCOLORMAPS, scalelight_fixed, select_row,
 };
+pub use plane::{FlatSet, PlaneProjection, PlaneRenderReport, render_planes};
 pub use planes::{MAX_VISPLANES, PlaneSet, Visplane};
 pub use span::{SpanParams, draw_span, draw_span_low};
 pub use textures::{TextureColumn, TexturePixels, TextureRun, TextureSet, build_texture_pixels};
