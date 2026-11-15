@@ -70,6 +70,14 @@ pub mod args;
 /// `RUST_LOG` (default `info`). Idempotent — safe to call more than once.
 pub mod log;
 
+/// Centralized resource management.
+///
+/// [`resources::ResourceManager`] stacks the IWAD/PWADs into one global
+/// namespace and serves raw lump bytes plus lazily-decoded typed values.
+/// Decoded values are cached once per (type, lump) pair and shared; decode
+/// failures are not cached.
+pub mod resources;
+
 /// WAD archive reading, stacking and lump lookup, ported from `w_wad.c`.
 ///
 /// [`wad::WadFile`] validates an archive on load; [`wad::WadSet`] stacks
