@@ -17,7 +17,7 @@ use crate::fixed::Fixed;
 use crate::gfx::flat::Flat;
 use crate::gfx::palette::Colormap;
 
-use super::framebuffer::{IndexedFramebuffer, pixel_addr};
+use super::framebuffer::{IndexedFramebuffer, SCREEN_HEIGHT, SCREEN_WIDTH, step_frac_n};
 
 /// Parameters for the span drawers (`ds_*` in the original).
 #[derive(Clone, Copy)]
@@ -69,17 +69,28 @@ pub fn draw_span(fb: &mut IndexedFramebuffer, flat: &Flat, params: &SpanParams<'
         // original's one-pixel write anyway.
         return;
     }
+    if y < 0 || y >= SCREEN_HEIGHT as i32 {
+        // every pixel of the span is off-screen; clipping it to nothing
+        return;
+    }
+    // skip the off-screen part of an over-long span in one jump instead of
+    // iterating through it
+    let first = x_lo.max(0);
+    let last = x_hi.min(SCREEN_WIDTH as i32 - 1);
+    if first > last {
+        return;
+    }
 
-    let mut x_frac = x_frac;
-    let mut y_frac = y_frac;
+    let mut x_frac = step_frac_n(x_frac, x_step, i64::from(first - x_lo));
+    let mut y_frac = step_frac_n(y_frac, y_step, i64::from(first - x_lo));
+    let y_addr = y as usize * SCREEN_WIDTH;
     let pixels = fb.as_mut_slice();
     let flat_pixels = flat.pixels();
 
-    for x in x_lo..=x_hi {
-        if let Some(addr) = pixel_addr(x, y) {
-            let spot = flat_spot(x_frac, y_frac);
-            pixels[addr] = colormap.lookup(flat_pixels[spot]);
-        }
+    for x in first..=last {
+        let addr = y_addr + x as usize;
+        let spot = flat_spot(x_frac, y_frac);
+        pixels[addr] = colormap.lookup(flat_pixels[spot]);
         x_frac += x_step;
         y_frac += y_step;
     }
@@ -101,29 +112,44 @@ pub fn draw_span_low(fb: &mut IndexedFramebuffer, flat: &Flat, params: &SpanPara
         y_step,
     } = params;
 
-    let x_lo = x_lo * 2;
-    let x_hi = x_hi * 2;
-    if x_hi < x_lo {
+    if y < 0 || y >= SCREEN_HEIGHT as i32 {
+        return;
+    }
+    // widen first: doubling extreme bounds in i32 can wrap
+    let x_lo64 = i64::from(x_lo) * 2;
+    let x_hi64 = i64::from(x_hi) * 2;
+    if x_hi64 < x_lo64 {
         return;
     }
 
-    let mut x_frac = x_frac;
-    let mut y_frac = y_frac;
+    // vanilla: count = x2 - x1 (already doubled); do..while(count--)
+    // paints count+1 double-pixels starting at the doubled x1
+    let count64 = x_hi64 - x_lo64;
+    // first/last double-pixel indices that touch the visible area
+    let screen_max = i64::from(SCREEN_WIDTH as i32 - 1);
+    if x_lo64 > screen_max {
+        return;
+    }
+    let first_i = if x_lo64 >= 0 { 0 } else { (-x_lo64 + 1) / 2 };
+    let last_i = ((screen_max - x_lo64) / 2).min(count64);
+    if first_i > last_i {
+        return;
+    }
+
+    let mut x_frac = step_frac_n(x_frac, x_step, first_i);
+    let mut y_frac = step_frac_n(y_frac, y_step, first_i);
+    let y_addr = y as usize * SCREEN_WIDTH;
     let pixels = fb.as_mut_slice();
     let flat_pixels = flat.pixels();
 
-    // vanilla: count = x2 - x1 (already doubled); do..while(count--)
-    // paints count+1 double-pixels starting at the doubled x1
-    let count = x_hi - x_lo;
-    for i in 0..=count {
-        let x = x_lo + i * 2;
-        if let Some(addr) = pixel_addr(x, y) {
-            let spot = flat_spot(x_frac, y_frac);
-            let texel = colormap.lookup(flat_pixels[spot]);
-            pixels[addr] = texel;
-            if let Some(addr2) = pixel_addr(x + 1, y) {
-                pixels[addr2] = texel;
-            }
+    for i in first_i..=last_i {
+        let x = (x_lo64 + i * 2) as usize;
+        let spot = flat_spot(x_frac, y_frac);
+        let texel = colormap.lookup(flat_pixels[spot]);
+        let addr = y_addr + x;
+        pixels[addr] = texel;
+        if addr + 1 < y_addr + SCREEN_WIDTH {
+            pixels[addr + 1] = texel;
         }
         x_frac += x_step;
         y_frac += y_step;
@@ -254,6 +280,50 @@ mod tests {
         assert_eq!(fb.get(1, 7), Some(3));
         assert_eq!(fb.get(2, 7), Some(4));
         assert_eq!(fb.get(0, 8), Some(0), "other rows untouched");
+    }
+
+    #[test]
+    fn span_clips_negative_x_start() {
+        let map = identity_colormap();
+        let flat = counting_flat();
+        let mut fb = IndexedFramebuffer::new();
+        // frac jumps past the clipped pixels; u at x = 0 lands on 5
+        let p = SpanParams {
+            colormap: &map,
+            y: 7,
+            x_lo: -5,
+            x_hi: 2,
+            x_frac: Fixed::ZERO,
+            y_frac: Fixed::ZERO,
+            x_step: Fixed::ONE,
+            y_step: Fixed::ZERO,
+        };
+        draw_span(&mut fb, &flat, &p);
+        assert_eq!(fb.get(0, 7), Some(5));
+        assert_eq!(fb.get(1, 7), Some(6));
+        assert_eq!(fb.get(2, 7), Some(7));
+    }
+
+    #[test]
+    fn span_clips_overlong_span_quickly() {
+        let map = identity_colormap();
+        let flat = counting_flat();
+        let mut fb = IndexedFramebuffer::new();
+        let p = SpanParams {
+            colormap: &map,
+            y: 9,
+            x_lo: 0,
+            x_hi: i32::MAX,
+            x_frac: Fixed::ZERO,
+            y_frac: Fixed::ZERO,
+            x_step: Fixed::ONE,
+            y_step: Fixed::ZERO,
+        };
+        draw_span(&mut fb, &flat, &p);
+        assert_eq!(fb.get(0, 9), Some(0));
+        // u wraps at 64 texels
+        assert_eq!(fb.get(64, 9), Some(0));
+        assert_eq!(fb.get(319, 9), Some((319 & 63) as u8));
     }
 
     #[test]

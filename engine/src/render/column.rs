@@ -26,7 +26,7 @@
 use crate::fixed::Fixed;
 use crate::gfx::palette::Colormap;
 
-use super::framebuffer::{IndexedFramebuffer, SCREEN_WIDTH, pixel_addr};
+use super::framebuffer::{IndexedFramebuffer, SCREEN_HEIGHT, SCREEN_WIDTH, step_frac_n};
 
 /// Source of texels for one column.
 ///
@@ -159,19 +159,26 @@ pub fn draw_column(
     if x < 0 || x >= SCREEN_WIDTH as i32 {
         return;
     }
-    let count = y_hi - y_lo;
-    if count < 0 {
+    if y_hi < y_lo {
+        return;
+    }
+    // clip to the visible rows; vanilla crashed (or wandered into who-knows
+    // what malloc'd memory) on out-of-range rows, we draw the visible part
+    let first = y_lo.max(0);
+    let last = y_hi.min(SCREEN_HEIGHT as i32 - 1);
+    if first > last {
         return;
     }
 
     let mut frac = texturemid + iscale * Fixed::from_int(y_lo - center_y);
+    frac = step_frac_n(frac, iscale, i64::from(first - y_lo));
+    let x_addr = x as usize;
     let pixels = fb.as_mut_slice();
 
-    for y in y_lo..=y_hi {
-        if let Some(addr) = pixel_addr(x, y) {
-            let texel = source.texel(step_texel_row(frac));
-            pixels[addr] = colormap.lookup(texel);
-        }
+    for y in first..=last {
+        let addr = y as usize * SCREEN_WIDTH + x_addr;
+        let texel = source.texel(step_texel_row(frac));
+        pixels[addr] = colormap.lookup(texel);
         frac += iscale;
     }
 }
@@ -204,23 +211,28 @@ pub fn draw_column_low(
     if x0 < 0 || x0 >= SCREEN_WIDTH as i32 {
         return;
     }
-    let count = y_hi - y_lo;
-    if count < 0 {
+    if y_hi < y_lo {
+        return;
+    }
+    let first = y_lo.max(0);
+    let last = y_hi.min(SCREEN_HEIGHT as i32 - 1);
+    if first > last {
         return;
     }
 
     let mut frac = texturemid + iscale * Fixed::from_int(y_lo - center_y);
+    frac = step_frac_n(frac, iscale, i64::from(first - y_lo));
+    let x_addr = x0 as usize;
+    let second_fits = x_addr + 1 < SCREEN_WIDTH;
     let pixels = fb.as_mut_slice();
 
-    for y in y_lo..=y_hi {
-        if let Some(addr) = pixel_addr(x0, y) {
-            let texel = source.texel(step_texel_row(frac));
-            let lit = colormap.lookup(texel);
-            pixels[addr] = lit;
-            // the second column of the double-wide pixel, when it fits
-            if let Some(addr2) = pixel_addr(x0 + 1, y) {
-                pixels[addr2] = lit;
-            }
+    for y in first..=last {
+        let addr = y as usize * SCREEN_WIDTH + x_addr;
+        let texel = source.texel(step_texel_row(frac));
+        let lit = colormap.lookup(texel);
+        pixels[addr] = lit;
+        if second_fits {
+            pixels[addr + 1] = lit;
         }
         frac += iscale;
     }
@@ -364,23 +376,26 @@ pub fn draw_fuzz_column(
     if x < 0 || x >= SCREEN_WIDTH as i32 {
         return;
     }
-    let count = yh - yl;
-    if count < 0 {
+    yl = yl.max(0);
+    yh = yh.min(SCREEN_HEIGHT as i32 - 1);
+    if yl > yh {
         return;
     }
 
+    let x_addr = x as usize;
     let pixels = fb.as_mut_slice();
     for y in yl..=yh {
-        if let Some(addr) = pixel_addr(x, y) {
-            let offset = fuzz.next_offset();
-            let neighbor = addr as i32 + offset;
-            let neighbor_pixel = usize::try_from(neighbor)
-                .ok()
-                .and_then(|n| pixels.get(n))
-                .copied()
-                .unwrap_or(0);
-            pixels[addr] = fuzz_colormap.lookup(neighbor_pixel);
-        }
+        let addr = y as usize * SCREEN_WIDTH + x_addr;
+        let offset = fuzz.next_offset();
+        // offsets are multiples of SCREEN_WIDTH, so addr + offset lands in
+        // the same column one row up/down and never wraps a row
+        let neighbor = addr as i64 + i64::from(offset);
+        let neighbor_pixel = usize::try_from(neighbor)
+            .ok()
+            .and_then(|n| pixels.get(n))
+            .copied()
+            .unwrap_or(0);
+        pixels[addr] = fuzz_colormap.lookup(neighbor_pixel);
     }
 }
 
@@ -558,6 +573,48 @@ mod tests {
         let p = params(&map, -1, 0, 10);
         draw_column(&mut fb, &src, &p);
         assert!(fb.as_slice().iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn column_clips_rows_above_framebuffer() {
+        let map = identity_colormap();
+        let column = counting_column();
+        let src = WrappedColumn::wall(&column);
+        let mut fb = IndexedFramebuffer::new();
+        // negative y_lo: rows -4..-1 skipped, frac jumps; row 0 gets texel 0
+        let p = ColumnParams {
+            colormap: &map,
+            x: 2,
+            y_lo: -4,
+            y_hi: 2,
+            iscale: Fixed::ONE,
+            texturemid: Fixed::ZERO,
+            center_y: 0,
+        };
+        draw_column(&mut fb, &src, &p);
+        assert_eq!(fb.get(2, 0), Some(0));
+        assert_eq!(fb.get(2, 1), Some(1));
+        assert_eq!(fb.get(2, 2), Some(2));
+    }
+
+    #[test]
+    fn column_clips_rows_below_framebuffer() {
+        let map = identity_colormap();
+        let column = counting_column();
+        let src = WrappedColumn::wall(&column);
+        let mut fb = IndexedFramebuffer::new();
+        // y_hi far beyond the screen must return quickly, not hang
+        let p = ColumnParams {
+            colormap: &map,
+            x: 2,
+            y_lo: 0,
+            y_hi: i32::MAX,
+            iscale: Fixed::ONE,
+            texturemid: Fixed::ZERO,
+            center_y: 0,
+        };
+        draw_column(&mut fb, &src, &p);
+        assert_eq!(fb.get(2, 199), Some((199 & 127) as u8));
     }
 
     #[test]

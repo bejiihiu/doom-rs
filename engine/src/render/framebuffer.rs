@@ -14,25 +14,27 @@
 //! belong to the window-drawing layer (agent 24+/border code), not to the
 //! core framebuffer.
 
+use crate::fixed::Fixed;
 use crate::gfx::palette::Palette;
 
-/// Horizonal resolution of the classic engine's screen.
+/// Horizontal resolution of the classic engine's screen.
 pub const SCREEN_WIDTH: usize = 320;
 /// Vertical resolution of the classic engine's screen.
 pub const SCREEN_HEIGHT: usize = 200;
 /// Total pixel count in the framebuffer.
 pub const SCREEN_PIXELS: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
 
-/// Index into the flat pixel array for `(x, y)`, or `None` out of bounds.
+/// Advances `frac` by `frac_step * n` without looping `n` times.
 ///
-/// Shared by the column/span drawers: they draw with clipping rather than
-/// crashing, and always with the same bounds rule.
-pub(crate) fn pixel_addr(x: i32, y: i32) -> Option<usize> {
-    if (0..SCREEN_WIDTH as i32).contains(&x) && (0..SCREEN_HEIGHT as i32).contains(&y) {
-        Some(y as usize * SCREEN_WIDTH + x as usize)
-    } else {
-        None
+/// Wraps the low 32 bits exactly like `n` repeated wrapping adds, which
+/// is what the original's `frac += fracstep` does per pixel. Used to skip
+/// pixels outside the framebuffer in one shot instead of iterating.
+pub(crate) fn step_frac_n(frac: Fixed, frac_step: Fixed, n: i64) -> Fixed {
+    if n == 0 {
+        return frac;
     }
+    let raw = frac.to_raw() as i64 + frac_step.to_raw() as i64 * n;
+    Fixed::from_raw(raw as i32)
 }
 
 /// An 8-bit, palette-indexed 320x200 framebuffer.
