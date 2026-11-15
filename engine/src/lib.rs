@@ -14,7 +14,9 @@
 //!   and the BAM [`tables::Angle`] type.
 //! - `math` — geometry helpers: line side tests, bounding boxes, distance
 //!   and angle differences.
-//! - `rng` — deterministic pseudo-random number generation.
+//! - `rng` — deterministic pseudo-random number generation ([`rng`]).
+//! - `swap` — bounds-checked little-endian reads/writes on byte slices
+//!   ([`swap`]).
 //! - `errors` — engine error types.
 //! - `config` — startup configuration handling.
 //! - `wad` — WAD archive reading and lump lookup.
@@ -36,6 +38,19 @@
 //!
 //! Early scaffolding. Only the modules documented as present below compile
 //! today; the renderer and gameplay land incrementally.
+
+/// Deterministic pseudo-random number generation, ported from `m_random.c`.
+///
+/// The engine owns generator instances ([`rng::DoomRng`]) instead of the
+/// original's global `rndindex`, which keeps demo replays and net sync
+/// deterministic.
+pub mod rng;
+
+/// Little-endian scalar reads and writes on byte slices.
+///
+/// Everything on this boundary is bounds-checked and returns
+/// [`errors::EngineResult`]; corrupt lumps never cause a panic.
+pub mod swap;
 
 pub mod config;
 pub mod errors;

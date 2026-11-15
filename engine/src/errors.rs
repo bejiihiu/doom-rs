@@ -19,6 +19,23 @@ pub enum EngineError {
     /// A resource could not be located or decoded.
     #[error("resource error: {0}")]
     Resource(String),
+
+    /// A read from a lump buffer went out of bounds.
+    ///
+    /// Carries the requested `offset`, how many bytes were needed there and
+    /// how many were actually available, so callers can report corrupt data
+    /// precisely instead of guessing.
+    #[error(
+        "lump read out of bounds: offset {offset}, needed {needed} byte(s), only {available} available"
+    )]
+    LumpRead {
+        /// Byte offset the read started at.
+        offset: usize,
+        /// Size of the requested read in bytes.
+        needed: usize,
+        /// Bytes actually left in the buffer from `offset`.
+        available: usize,
+    },
 }
 
 /// Convenience alias for engine results.
@@ -42,5 +59,18 @@ mod tests {
 
         let err = EngineError::Resource("lump PLAYPAL missing".into());
         assert_eq!(err.to_string(), "resource error: lump PLAYPAL missing");
+    }
+
+    #[test]
+    fn lump_read_display_shows_the_bounds() {
+        let err = EngineError::LumpRead {
+            offset: 10,
+            needed: 4,
+            available: 2,
+        };
+        assert_eq!(
+            err.to_string(),
+            "lump read out of bounds: offset 10, needed 4 byte(s), only 2 available"
+        );
     }
 }
