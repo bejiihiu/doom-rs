@@ -116,7 +116,11 @@ pub mod bsp;
 /// Turns the raw map lumps into typed, fully validated structures;
 /// every on-disk index is checked before it is stored, so downstream
 /// code can trust the map instead of re-validating it. Corrupt maps
-/// come back as [`map::MapError`], never as a panic.
+/// come back as [`map::MapError`], never as a panic. The `map` module
+/// also carries the runtime blockmap queries
+/// ([`map::lines_in_box`]) ported from `p_maputl.c`; they walk the grid
+/// for a map-unit box and yield linedef indices in vanilla traversal
+/// order, duplicates included.
 pub mod map;
 
 pub mod config;

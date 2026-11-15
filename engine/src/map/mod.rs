@@ -11,6 +11,7 @@
 //! |-------------|-------------------------------------------------------------|
 //! | [`types`](crate::map::types) | raw on-disk records, engine structures, `Map` |
 //! | `blockmap`  | BLOCKMAP lump loading (offset table + cell lists)          |
+//! | `blockmap_query` | runtime cell lookup for a map box (`lines_in_box`)  |
 //! | `load`      | per-lump loaders and the validating [`Map::load`](crate::map::Map::load) |
 //! | `read`      | shared bounds-checked read helpers                          |
 //! | `error`     | [`MapError`](crate::map::MapError)                          |
@@ -49,6 +50,7 @@
 //! ```
 
 mod blockmap;
+mod blockmap_query;
 mod error;
 mod load;
 mod read;
@@ -57,6 +59,10 @@ pub(crate) mod testutil;
 
 pub mod types;
 
+pub use blockmap_query::{
+    BlockRange, LinesInBox, UnitBox, block_index, block_range, box_overlaps_grid, lines_in_box,
+    origin_units,
+};
 pub use error::{MapError, MapResult};
 pub use load::MapLumps;
 pub use types::{
