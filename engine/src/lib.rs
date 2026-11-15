@@ -12,6 +12,8 @@
 //! - `fixed` — 16.16 fixed-point arithmetic used throughout the engine.
 //! - `tables` — fine angle tables (`FINE_SINE`/`FINE_COSINE`/`FINE_TANGENT`)
 //!   and the BAM [`tables::Angle`] type.
+//! - `math` — geometry helpers: line side tests, bounding boxes, distance
+//!   and angle differences.
 //! - `rng` — deterministic pseudo-random number generation.
 //! - `errors` — engine error types.
 //! - `config` — startup configuration handling.
@@ -38,6 +40,7 @@
 pub mod config;
 pub mod errors;
 pub mod fixed;
+pub mod math;
 pub mod tables;
 
 /// Version of the engine crate. Re-exported for binaries and tools so they
