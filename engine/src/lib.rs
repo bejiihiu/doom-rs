@@ -85,6 +85,15 @@ pub mod resources;
 /// last-file-overrides lookup.
 pub mod wad;
 
+/// Graphics data formats, ported from `r_data.c` / `v_video.c`.
+///
+/// Pure decoders for the graphics lumps: palettes, colormaps, patches,
+/// textures, patch-name tables, flats and sprites. Every decoder validates
+/// its input and returns [`gfx::GfxError`] on corrupt data instead of
+/// panicking. Loading the lumps and caching the decoded values is the
+/// resource manager's job; see [`resources`].
+pub mod gfx;
+
 pub mod config;
 pub mod errors;
 pub mod fixed;
