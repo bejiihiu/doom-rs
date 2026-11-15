@@ -11,8 +11,8 @@
 //! column/span drawers and the view/window code; `R_InitBuffer`'s
 //! `ylookup`/`columnofs` tables are deliberately not ported — the buffer is
 //! linear, so row lookup is just a multiply, and the "subwindow" offsets
-//! belong to the window-drawing layer (agent 24+/border code), not to the
-//! core framebuffer.
+//! belong to the border/status-bar drawing layer, not to the core
+//! framebuffer.
 
 use crate::fixed::Fixed;
 use crate::gfx::palette::Palette;
