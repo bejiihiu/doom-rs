@@ -36,6 +36,10 @@ pub enum EngineError {
         /// Bytes actually left in the buffer from `offset`.
         available: usize,
     },
+
+    /// A WAD archive failed to parse or a lump lookup failed.
+    #[error("wad error: {0}")]
+    Wad(#[from] crate::wad::WadError),
 }
 
 /// Convenience alias for engine results.

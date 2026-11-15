@@ -70,6 +70,13 @@ pub mod args;
 /// `RUST_LOG` (default `info`). Idempotent — safe to call more than once.
 pub mod log;
 
+/// WAD archive reading, stacking and lump lookup, ported from `w_wad.c`.
+///
+/// [`wad::WadFile`] validates an archive on load; [`wad::WadSet`] stacks
+/// the IWAD/PWADs into one global namespace with vanilla's
+/// last-file-overrides lookup.
+pub mod wad;
+
 pub mod config;
 pub mod errors;
 pub mod fixed;
