@@ -62,6 +62,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cachegirl"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae307ea400f0135fabf0290b3b056b29135f2ad1e829f1c61d74ed12ecf3a8c3"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -133,6 +142,7 @@ dependencies = [
 name = "doom-engine"
 version = "0.1.0"
 dependencies = [
+ "cachegirl",
  "thiserror",
  "tracing",
  "tracing-subscriber",

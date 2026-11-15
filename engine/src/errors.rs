@@ -40,6 +40,18 @@ pub enum EngineError {
     /// A WAD archive failed to parse or a lump lookup failed.
     #[error("wad error: {0}")]
     Wad(#[from] crate::wad::WadError),
+
+    /// A managed scratch (temporary file) operation failed.
+    ///
+    /// Carries the path the operation was about so the failure is
+    /// actionable; `source` keeps the cachegirl error chain.
+    #[error("scratch error at {path}: {source}")]
+    Scratch {
+        /// The target or scratch path being operated on.
+        path: std::path::PathBuf,
+        /// The underlying cachegirl failure.
+        source: cachegirl::Error,
+    },
 }
 
 /// Convenience alias for engine results.

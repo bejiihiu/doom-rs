@@ -25,6 +25,8 @@
 //!   system ([`config`]).
 //! - `wad` — WAD archive reading and lump lookup.
 //! - `resources` — centralized resource manager and lump lifecycle.
+//! - `scratch` — managed scratch space: atomic file writes staged in a
+//!   `cachegirl`-tracked temp file with crash recovery ([`scratch`]).
 //! - `gfx` — graphics data formats: palettes, colormaps, patches, flats
 //!   and sprites.
 //! - `map` — map lump loading and validation.
@@ -84,6 +86,14 @@ pub mod resources;
 /// the IWAD/PWADs into one global namespace with vanilla's
 /// last-file-overrides lookup.
 pub mod wad;
+
+/// Managed scratch space for atomic writes and crash-safe temp files.
+///
+/// [`scratch::atomic_write`] stages a payload in a `cachegirl`-tracked
+/// temp file next to the target and renames it into place; crash debris
+/// is reclaimed by the startup recovery pass. All durable file writes
+/// in the engine go through here.
+pub mod scratch;
 
 /// Graphics data formats, ported from `r_data.c` / `v_video.c`.
 ///

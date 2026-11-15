@@ -425,8 +425,12 @@ impl DoomConfig {
     }
 
     /// Write the config to a file in the canonical format.
+    ///
+    /// The payload is staged in a managed scratch file next to `path`
+    /// and renamed into place, so a crash mid-write cannot leave a
+    /// half-written config behind.
     pub fn save(&self, path: &Path) -> EngineResult<()> {
-        std::fs::write(path, self.serialize()).map_err(EngineError::Io)
+        crate::scratch::atomic_write(path, self.serialize().as_bytes())
     }
 
     /// Integer accessor with a fallback to the key's default.

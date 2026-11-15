@@ -11,3 +11,4 @@ homepage.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+cachegirl = { version = "1", default-features = true }
