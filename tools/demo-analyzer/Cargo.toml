@@ -1,0 +1,16 @@
+[package]
+name = "doom-demo-analyzer"
+description = "Analyze DOOM demo recordings (.lmp): commands, gametics, metadata"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[[bin]]
+name = "doom-demo-analyzer"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+doom-engine = { path = "../../engine" }

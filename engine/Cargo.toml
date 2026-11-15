@@ -1,0 +1,11 @@
+[package]
+name = "doom-engine"
+description = "Modern rewrite of the DOOM engine in Rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+thiserror.workspace = true

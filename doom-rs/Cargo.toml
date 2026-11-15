@@ -1,0 +1,12 @@
+[package]
+name = "doom-rs"
+description = "Modern rewrite of the DOOM engine in Rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+clap.workspace = true
+doom-engine = { path = "../engine" }

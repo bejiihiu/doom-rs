@@ -1,0 +1,16 @@
+[package]
+name = "doom-asset-inspector"
+description = "Dump DOOM engine assets (palettes, colormaps, patches, flats) to images"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[[bin]]
+name = "doom-asset-inspector"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+doom-engine = { path = "../../engine" }

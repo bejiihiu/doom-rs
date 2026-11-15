@@ -1,0 +1,9 @@
+target/
+*.rs.bk
+.idea/
+.vscode/
+idea.md
+notes.md
+tasks/
+*.local
+dump.wad

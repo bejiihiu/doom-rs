@@ -1,0 +1,2 @@
+# Keep lints pragmatic for a legacy-port codebase; extend as the code grows.
+msrv = "1.85"

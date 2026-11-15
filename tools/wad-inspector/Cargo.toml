@@ -1,0 +1,16 @@
+[package]
+name = "doom-wad-inspector"
+description = "Inspect DOOM WAD archives: lump directory, stacking and validation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[[bin]]
+name = "doom-wad-inspector"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+doom-engine = { path = "../../engine" }

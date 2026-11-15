@@ -1,0 +1,25 @@
+[workspace]
+resolver = "3"
+members = [
+    "engine",
+    "doom-rs",
+    "tools/wad-inspector",
+    "tools/asset-inspector",
+    "tools/demo-analyzer",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-2.0-or-later"
+repository = "https://github.com/bejiihiu/doom-rs"
+homepage = "https://github.com/bejiihiu/doom-rs"
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+criterion = { version = "0.8", features = ["html_reports"] }
