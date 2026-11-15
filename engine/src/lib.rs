@@ -104,6 +104,14 @@ pub mod scratch;
 /// resource manager's job; see [`resources`].
 pub mod gfx;
 
+/// Map parsing and in-memory representation, ported from `p_setup.c`.
+///
+/// Turns the raw map lumps into typed, fully validated structures;
+/// every on-disk index is checked before it is stored, so downstream
+/// code can trust the map instead of re-validating it. Corrupt maps
+/// come back as [`map::MapError`], never as a panic.
+pub mod map;
+
 pub mod config;
 pub mod errors;
 pub mod fixed;
