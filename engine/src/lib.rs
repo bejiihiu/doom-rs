@@ -104,6 +104,13 @@ pub mod scratch;
 /// resource manager's job; see [`resources`].
 pub mod gfx;
 
+/// BSP tree traversal and wall clipping, ported from `r_bsp.c`/`r_main.c`.
+///
+/// Pure math and state machines over [`map::Node`] and column spans; the
+/// renderer feeds its output through `emit` callbacks. See [`bsp`] module
+/// docs.
+pub mod bsp;
+
 /// Map parsing and in-memory representation, ported from `p_setup.c`.
 ///
 /// Turns the raw map lumps into typed, fully validated structures;
