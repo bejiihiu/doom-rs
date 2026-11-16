@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in doom-rs doesn't work the way it should
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What happened? Be as specific as you can.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include error output or panics if any.
+    validations:
+      required: true
+  - type: input
+    id: iwad
+    attributes:
+      label: IWAD used
+      description: Which IWAD family, e.g. "DOOM II (doom2.wad)" or "Ultimate Doom (doomu.wad)". Do not attach the WAD itself.
+      placeholder: doom2.wad
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: OS and version, plus the doom-rs version or commit hash (`doom-rs --version`).
+      placeholder: Windows 11, doom-rs 0.1.0 (abc1234)
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Command line and repro steps
+      description: Exact command line and steps to reproduce. If a demo is involved, attach the .lmp file (demos don't contain copyrighted data).
+      placeholder: doom-rs -iwad doom2.wad -warp 1
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output
+      description: Relevant terminal output or stack traces. `RUST_LOG=debug` output helps a lot.
+      render: shell
+    validations:
+      required: false
