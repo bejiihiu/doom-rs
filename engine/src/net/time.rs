@@ -12,6 +12,12 @@ use crate::game::TICRATE;
 pub trait TimeSource {
     /// Current time in tics.
     fn now_tics(&self) -> i32;
+
+    /// Advance the internal clock by `tics`. Production clocks
+    /// ([`InstantTimeSource`], [`CountingTime`]) keep their own cadence and
+    /// ignore this; the deterministic [`ManualTime`] honors it, so tests
+    /// can step the simulation one tic at a time.
+    fn advance(&self, _tics: i32) {}
 }
 
 /// The real-time [`TimeSource`] backed by [`std::time::Instant`].
@@ -70,11 +76,6 @@ impl ManualTime {
             tics: std::cell::Cell::new(tics),
         }
     }
-
-    /// Advances the clock by `tics` tics.
-    pub fn advance(&self, tics: i32) {
-        self.tics.set(self.tics.get() + tics);
-    }
 }
 
 impl Default for ManualTime {
@@ -86,6 +87,10 @@ impl Default for ManualTime {
 impl TimeSource for ManualTime {
     fn now_tics(&self) -> i32 {
         self.tics.get()
+    }
+
+    fn advance(&self, tics: i32) {
+        self.tics.set(self.tics.get() + tics);
     }
 }
 

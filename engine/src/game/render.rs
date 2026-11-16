@@ -590,20 +590,53 @@ pub(crate) fn render_frame(fb: &mut IndexedFramebuffer, game: &mut Game) -> Engi
     Ok(())
 }
 
-/// The demo screen (title pic), vanilla `D_PageDrawer`.
+/// The demo screen (title pic), vanilla `D_PageDrawer`. A net game that
+/// is still waiting for the setup arbitration to finish gets the sync
+/// overlay on top so the player sees what it is waiting for.
 fn render_demoscreen(fb: &mut IndexedFramebuffer, game: &mut Game) {
+    let mut opened = false;
     if let Some(index) = game.resources.find_lump("TITLEPIC") {
         if let Ok(patch) = game.resources.decode_cached::<Patch>(index, |bytes| {
             decode_patch(bytes).map_err(crate::errors::EngineError::from)
         }) {
             crate::stbar::draw_patch(fb, &patch, 0, 0);
-            return;
+            opened = true;
         }
     }
-    // no TITLEPIC in this WAD: solid black
-    for y in 0..SCREEN_HEIGHT {
-        if let Some(row) = fb.row_mut(y) {
+    if !opened {
+        // no TITLEPIC in this WAD: solid black
+        for y in 0..SCREEN_HEIGHT {
+            if let Some(row) = fb.row_mut(y) {
+                row.fill(0);
+            }
+        }
+    }
+    if game.net_phase == crate::game::NetPhase::WaitingForPlayers {
+        draw_net_wait_overlay(fb, game);
+    }
+}
+
+/// The wait-for-peers overlay shown while the setup arbitration runs.
+/// Vanilla only printed "sending/listening for network start info..." to
+/// the console; an on-screen prompt is kinder to whoever is sitting at
+/// the other machine.
+fn draw_net_wait_overlay(fb: &mut IndexedFramebuffer, game: &Game) {
+    let font = &game.font;
+    let line_step = font.glyph_height() + 4;
+    let lines: &[&[u8]] = &[b"NET GAME", b"", b"waiting for players", b"(esc to abort)"];
+    // a solid black band behind the text keeps it readable over the page
+    let band = lines.len() as i32 * line_step + 16;
+    let top = SCREEN_HEIGHT as i32 / 2 - band / 2;
+    for y in top..(top + band) {
+        if let Some(row) = fb.row_mut(y as usize) {
             row.fill(0);
         }
+    }
+    let mut y = top + 8;
+    for text in lines {
+        let width = crate::hud::text_width(font, text);
+        let x = ((SCREEN_WIDTH as i32 - width) / 2).max(0);
+        crate::hud::draw_text(font, fb, text, x, y);
+        y += line_step;
     }
 }

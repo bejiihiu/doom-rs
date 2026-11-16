@@ -146,8 +146,18 @@ pub fn try_run_tics(
             if hooks.advance_demo() {
                 hooks.try_advance_demo();
             }
+            // resolve this tic's commands from netcmds[][] before handing
+            // the game its tic; the duplicated tics had their special
+            // buttons stripped right after they were built
+            let buf = ((hooks.gametic() / ticdup) % BACKUPTICS) as usize;
+            let mut tic_cmds = [TicCmd::default(); MAXPLAYERS];
+            for (player, cmd) in tic_cmds.iter_mut().enumerate() {
+                if hooks.playeringame(player) {
+                    *cmd = engine.netcmd(player, buf);
+                }
+            }
             hooks.menu_ticker();
-            hooks.run_game_tic();
+            hooks.run_game_tic(tic_cmds);
             hooks.set_gametic(hooks.gametic() + 1);
 
             // modify command for duplicated tics

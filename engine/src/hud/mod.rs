@@ -32,7 +32,7 @@ pub use messages::{
     CHAT_MACROS, HudMessage, MAPNAMES_DOOM2, MAPNAMES_EPISODE, MAPNAMES_PLUTONIA, MAPNAMES_TNT,
     MapNameSet, PLAYER_NAMES, marked_spot_message,
 };
-pub use widgets::{HU_MAXLINELENGTH, HU_MAXLINES, ScrollText, TextLine, text_width};
+pub use widgets::{HU_MAXLINELENGTH, HU_MAXLINES, ScrollText, TextLine, draw_text, text_width};
 
 use crate::errors::{EngineError, EngineResult};
 use crate::gfx::patch::{Patch, decode_patch};

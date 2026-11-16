@@ -14,6 +14,9 @@
 //!   (`P_PlayerThink`), the level-exit flow and the platform-facing API
 //!   ([`game::Game::new`], [`game::Game::tick_input`],
 //!   [`game::Game::advance`], [`game::Game::should_quit`]).
+//! - [`hooks`] - the `NetGameHooks` seam: the glue that lets the net
+//!   tic governor (`net::try_run_tics`) drive the world without `d_net.c`
+//!   reaching into globals.
 //! - [`input`] - player input and the `G_BuildTiccmd` port
 //!   ([`input::TicCmdInput`] in, [`player::TicCmd`] out).
 //! - [`render`] - the single frame assembly: the BSP/wall pass, planes,
@@ -27,13 +30,17 @@
 //! - [`finale_tables`] - the `CastTables` implementation over the ported
 //!   info tables, for the DOOM II MAP30 cast call.
 //!
-//! What is deliberately absent: networking (`d_net.c`/`i_net.c` - the
-//! engine is single-player and demo-deterministic), a windowing or input
-//! backend (platform shells feed [`input::TicCmdInput`] and friends),
-//! and any `winit` dependency - everything here is testable headless.
+//! What is deliberately absent: a windowing or input backend (platform
+//! shells feed [`input::TicCmdInput`] and friends), and any `winit`
+//! dependency - everything here is testable headless. Networked play
+//! enters through `-net` and the `net` module; the tic governor drives
+//! this module through [`hooks`].
 
 mod demo;
 mod finale_tables;
+// internal plumbing for the net layer's seam; keeps the net engine free of
+// world knowledge (see the module docs)
+mod hooks;
 // `game::game` mirrors how the other singleton modules are laid out
 // (`game::render`, `game::input`); renaming the inner file would churn
 // every path for no real gain
@@ -47,6 +54,9 @@ mod tests;
 
 pub use demo::{DEMO_MARKER, DEMO_VERSION, DemoPlayback, DemoRecording};
 pub use finale_tables::GameCastTables;
-pub use game::{Game, GameAction, GameConfig, GameState, InputEvent, KeyBindings, TICRATE, keys};
+pub use game::{
+    BACKUPTICS, Game, GameAction, GameConfig, GameState, InputEvent, KeyBindings, NetPhase,
+    TICRATE, keys,
+};
 pub use input::{MAX_PLMOVE, TicBuilder, TicCmdInput};
 pub use savegame::{SAVE_MAGIC, SAVE_VERSION, SaveBlock, SaveGameError};

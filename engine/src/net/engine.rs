@@ -230,8 +230,10 @@ pub trait NetGameHooks {
     fn pump_events(&mut self);
     /// Builds the console player's ticcmd for the current `maketic`.
     fn build_ticcmd(&mut self) -> TicCmd;
-    /// Runs one game tic (`G_Ticker`).
-    fn run_game_tic(&mut self);
+    /// Runs one game tic (`G_Ticker`). The governor resolves each
+    /// in-game player's command from `netcmds[][]` for this tic and hands
+    /// the whole row over, so the game never reaches into the engine.
+    fn run_game_tic(&mut self, cmds: [TicCmd; MAXPLAYERS]);
     /// Runs the menu ticker (`M_Ticker`).
     fn menu_ticker(&mut self);
     /// Lets a pending demo advance (`D_DoAdvanceDemo`).

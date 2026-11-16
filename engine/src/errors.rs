@@ -52,6 +52,12 @@ pub enum EngineError {
         /// The underlying cachegirl failure.
         source: cachegirl::Error,
     },
+
+    /// The network layer reported a fatal error (vanilla `I_Error` exits
+    /// from `d_net.c`): killed by the driver, different versions,
+    /// consistency failure, ...
+    #[error("network error: {0}")]
+    Net(#[from] crate::net::NetError),
 }
 
 /// Convenience alias for engine results.

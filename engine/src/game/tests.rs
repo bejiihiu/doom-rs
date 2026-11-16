@@ -268,6 +268,7 @@ fn reject_lump() -> Vec<u8> {
 fn things_lump(monster: bool) -> Vec<u8> {
     let mut things: Vec<(i16, i16, i16, i16, i16)> = vec![
         (128, 128, 0, 1, 7), // player 1, angle 0 (east), skill bits
+        (160, 128, 0, 2, 7), // player 2 start - net games spawn both
     ];
     if monster {
         things.push((100, 100, 0, 3004, 7)); // MT_POSSESSED
@@ -651,5 +652,235 @@ fn the_world_runs_for_several_seconds_without_incidents() {
     }
     let position = game.player_position().expect("player still in the game");
     assert!(position.0 > Fixed::from_int(128));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---------------------------------------------------------------------------
+// the net wiring: two games over a scripted in-memory wire
+// ---------------------------------------------------------------------------
+
+use crate::game::NetPhase;
+use crate::mobj::Skill;
+use crate::net::{NetConfig, NetEngine, NetGameSettings};
+
+type OutQueue = std::rc::Rc<std::cell::RefCell<Vec<(usize, Vec<u8>)>>>;
+type InQueue = std::rc::Rc<std::cell::RefCell<std::collections::VecDeque<(usize, Vec<u8>)>>>;
+
+struct ScriptedEnd {
+    out: OutQueue,
+    inb: InQueue,
+}
+
+impl crate::net::NetTransport for ScriptedEnd {
+    fn send_packet(&mut self, node: usize, data: &[u8]) {
+        self.out.borrow_mut().push((node, data.to_vec()));
+    }
+    fn recv_packet(&mut self) -> Option<(usize, Vec<u8>)> {
+        self.inb.borrow_mut().pop_front()
+    }
+}
+
+/// Delivers every queued datagram to the peer it is addressed to; the
+/// sender shows up as node 1 on the other machine in both directions.
+fn pump_pair(a_out: &OutQueue, a_in: &InQueue, b_out: &OutQueue, b_in: &InQueue) {
+    for (node, bytes) in a_out.borrow_mut().drain(..) {
+        assert_eq!(node, 1, "the peer is node 1 on both sides");
+        b_in.borrow_mut().push_back((1, bytes));
+    }
+    for (node, bytes) in b_out.borrow_mut().drain(..) {
+        assert_eq!(node, 1, "the peer is node 1 on both sides");
+        a_in.borrow_mut().push_back((1, bytes));
+    }
+}
+
+/// Drives a full scripted session: builds two peers, arbitrates, then
+/// runs `frames` lockstep frames. Returns both machines so the caller
+/// can inspect whatever it needs.
+fn drive_session(
+    dir: &std::path::Path,
+    frames: usize,
+) -> (Game, Game, IndexedFramebuffer, IndexedFramebuffer) {
+    let (mut a, out_a, inb_a) = net_peer(dir, 0);
+    let (mut b, out_b, inb_b) = net_peer(dir, 1);
+    let mut fb_a = IndexedFramebuffer::new();
+    let mut fb_b = IndexedFramebuffer::new();
+    let input = TicCmdInput::NONE;
+
+    // phase 1: both sides run the setup arbitration and leave the wait
+    // screen together
+    for _ in 0..48 {
+        a.advance_net(&input, 16, &mut fb_a).expect("peer a frame");
+        pump_pair(&out_a, &inb_a, &out_b, &inb_b);
+        b.advance_net(&input, 16, &mut fb_b).expect("peer b frame");
+        pump_pair(&out_a, &inb_a, &out_b, &inb_b);
+        if a.net_phase == NetPhase::Playing && b.net_phase == NetPhase::Playing {
+            break;
+        }
+    }
+    assert_eq!(a.net_phase, NetPhase::Playing, "a finished the arbitration");
+    assert_eq!(b.net_phase, NetPhase::Playing, "b finished the arbitration");
+
+    // phase 2: the world runs on both machines, packets pumped between
+    // the two on every frame
+    for _ in 0..frames {
+        a.advance_net(&input, 0, &mut fb_a).expect("a tic frame");
+        pump_pair(&out_a, &inb_a, &out_b, &inb_b);
+        b.advance_net(&input, 0, &mut fb_b).expect("b tic frame");
+        pump_pair(&out_a, &inb_a, &out_b, &inb_b);
+    }
+    (a, b, fb_a, fb_b)
+}
+
+#[allow(clippy::too_many_lines)]
+fn net_peers_test_body() {
+    let dir = unique_test_dir();
+    let (mut a, b, _fb_a, _fb_b) = drive_session(&dir, 70);
+    assert!(a.netgame && b.netgame, "both peers switched to net mode");
+    assert!(a.playeringame[0] && a.playeringame[1]);
+    assert!(b.playeringame[0] && b.playeringame[1]);
+    assert_eq!(a.gameskill, Skill::Easy, "a applied the shared skill");
+    assert_eq!(b.gameskill, Skill::Easy, "b applied the shared skill");
+
+    // both machines ran a bunch of tics, and the two stayed close enough
+    // that the 12-tic rings still cover each other's view
+    assert!(a.gametic() > 50, "a advanced (got {})", a.gametic());
+    assert!(b.gametic() > 50, "b advanced (got {})", b.gametic());
+    assert!(
+        (a.gametic() - b.gametic()).abs() <= 15,
+        "lockstep drift stayed inside the ring (a={}, b={})",
+        a.gametic(),
+        b.gametic()
+    );
+    assert_eq!(a.total_kills(), b.total_kills());
+    // both avatars spawned on both machines
+    assert!(a.players[0].mo.is_some() && a.players[1].mo.is_some());
+    assert!(b.players[0].mo.is_some() && b.players[1].mo.is_some());
+
+    // leaving the game: the exit burst goes out, the engine is gone
+    a.net_quit();
+    assert!(a.net_engine.is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_scripted_session_is_deterministic() {
+    std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(deterministic_session_body)
+        .expect("net test thread spawns")
+        .join()
+        .expect("net test thread panicked");
+}
+
+fn deterministic_session_body() {
+    let dir = unique_test_dir();
+    // run the same scripted session twice; the two runs must land on the
+    // same world state, bit for bit
+    let (a1, b1, _, _) = drive_session(&dir, 40);
+    let (a2, b2, _, _) = drive_session(&dir, 40);
+    assert_eq!(a1.gametic(), a2.gametic());
+    assert_eq!(b1.gametic(), b2.gametic());
+    assert_eq!(a1.player_position(), a2.player_position());
+    assert_eq!(a1.leveltime(), a2.leveltime());
+    assert_eq!(b1.leveltime(), b2.leveltime());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A game parked in the wait-for-players phase, wired to the other peer
+/// over the scripted wire instead of real sockets.
+fn net_peer(dir: &std::path::Path, console_player: usize) -> (Game, OutQueue, InQueue) {
+    let game = load_game(dir, &new_game_args());
+    let out: OutQueue = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let inb: InQueue = std::rc::Rc::new(std::cell::RefCell::new(std::collections::VecDeque::new()));
+    let hosts = vec![std::net::SocketAddr::from((
+        std::net::Ipv4Addr::LOCALHOST,
+        41000,
+    ))];
+    let config = NetConfig {
+        console_player,
+        ticdup: 1,
+        extratics: false,
+        hosts,
+        port: 0,
+    };
+    let end = ScriptedEnd {
+        out: out.clone(),
+        inb: inb.clone(),
+    };
+    let mut game = game;
+    game.net_engine =
+        Some(NetEngine::with_transport(config, Box::new(end)).expect("scripted engine"));
+    game.net_settings = Some(NetGameSettings {
+        skill: 2,
+        deathmatch: 0,
+        nomonsters: false,
+        respawn: false,
+        episode: 1,
+        map: 1,
+    });
+    game.net_phase = NetPhase::WaitingForPlayers;
+    game.consoleplayer = console_player;
+    game.displayplayer = console_player;
+    game.net_playing = true;
+    game.net_ticdup = 1;
+    game.net_time = Box::new(crate::net::CountingTime::new());
+    (game, out, inb)
+}
+
+#[test]
+fn two_net_peers_arbitrate_and_simulate_identically() {
+    // the fixture builds two full games at once - comfortably over the
+    // default 8 MiB test-thread stack in debug builds, so this one runs
+    // on its own thread with headroom
+    std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(net_peers_test_body)
+        .expect("net test thread spawns")
+        .join()
+        .expect("net test thread panicked");
+}
+
+#[test]
+fn net_wait_screen_consumes_esc_and_aborts_the_sync() {
+    std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(net_wait_screen_body)
+        .expect("net test thread spawns")
+        .join()
+        .expect("net test thread panicked");
+}
+
+fn net_wait_screen_body() {
+    let dir = unique_test_dir();
+    let (mut game, _out, _inb) = net_peer(&dir, 0);
+    // no peer ever answers: esc at the wait screen aborts the arbitration
+    assert!(game.handle_event(&InputEvent::KeyDown(keys::ESCAPE)));
+    assert!(game.net_abort_requested, "esc latched the abort");
+    let mut fb = IndexedFramebuffer::new();
+    let err = game
+        .advance_net(&TicCmdInput::NONE, 16, &mut fb)
+        .expect_err("aborted sync fails the frame");
+    assert!(matches!(
+        err,
+        crate::errors::EngineError::Net(crate::net::NetError::SyncAbort)
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn tick_input_refuses_a_net_game() {
+    std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(tick_input_refuses_body)
+        .expect("net test thread spawns")
+        .join()
+        .expect("net test thread panicked");
+}
+
+fn tick_input_refuses_body() {
+    let dir = unique_test_dir();
+    let (mut game, _out, _inb) = net_peer(&dir, 0);
+    let mut fb = IndexedFramebuffer::new();
+    assert!(game.tick_input(&TicCmdInput::NONE, &mut fb).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }

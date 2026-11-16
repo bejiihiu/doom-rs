@@ -1,7 +1,7 @@
 //! `doom-rs` - the DOOM engine, rewritten in Rust, running in a real window.
 //!
-//! Startup order: parse our own flags, hand the remaining tokens to the
-//! engine's vanilla-style argument parser, resolve the IWAD, load
+//! Startup order: parse our own flags (via clap), hand the remaining tokens
+//! to the engine's vanilla-style argument parser, resolve the IWAD, load
 //! `doom.cfg`, build the game, then open the window and run the loop.
 //! Any failure before the window opens is a message on stderr and exit
 //! code 1 - never a panic, never a half-initialized game.
@@ -11,12 +11,13 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use clap::Parser;
 use doom_engine::VERSION as ENGINE_VERSION;
 use doom_engine::args;
 use doom_engine::config::DoomConfig;
 use doom_engine::game::{Game, GameConfig, KeyBindings};
 use doom_engine::gfx::palette::parse_playpal;
-use doom_engine::log::init_logging;
+use doom_engine::log::init_logging_with_default;
 use doom_engine::menu::GameMode;
 use doom_engine::resources::ResourceManager;
 use doom_engine::wad::WadFile;
@@ -29,22 +30,17 @@ mod audio;
 mod input;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const USAGE: &str = "\
+const LONG_ABOUT: &str = "\
 doom-rs - a faithful rewrite of the DOOM engine in Rust
 
-Usage: doom-rs [OPTIONS] [-iwad PATH] [-file WAD...] [ENGINE OPTIONS...]
+The engine options are the classic DOOM command line, passed through
+untouched. Platform flags (--fullscreen, --scale, -h/--help, -V/--version)
+must come first; everything after them goes to the engine.
 
-Options:
-  --fullscreen      Run in borderless fullscreen mode
-  --scale N         Integer scale factor for the 320x200 view (1-8, default 4)
-  -h, --help        Print this help and exit
-  -V, --version     Print the version and exit
-
-Engine options (DOOM-style):
+Engine options:
   -iwad PATH        Path to the IWAD (doom1.wad, doom.wad, doom2.wad, ...)
   -file WAD...      Layer one or more PWADs on top of the IWAD
-  -warp E M         Start on episode E map M (DOOM) / map N (DOOM II)
+  -warp E M         Start on episode E map M (DOOM), or map N (DOOM II)
   -skill N          Difficulty 1-5 (default: medium)
   -nomonsters       Do not spawn monsters
   -respawn          Monsters respawn after dying
@@ -52,90 +48,69 @@ Engine options (DOOM-style):
   -deathmatch       Deathmatch mode
   -altdeath         Alt deathmatch rules (with -deathmatch, alt wins)
   -nosound          Disable audio output
+  -nodeb            Keep the log quiet (warning level and above only)
+  -devparm          Development mode: logs \"development mode ON\"
   -playdemo DEMO    Play back a demo
   -timedemo DEMO    Time a demo playback
   -record DEMO      Record a demo
   -config PATH      Override the config file (default: ./doom.cfg)
   -turbo N          Move speed percentage (10-400)
+  -statcopy N       Statistics driver token, kept raw; unused
+
+Network play (UDP, peer-to-peer, no broadcast discovery - nodes need
+explicit unicast addresses):
+  -net N [HOST[:PORT] ...]
+                      Vanilla form: console player N (1-8), then the peer
+                      addresses. Each machine runs this with its own
+                      player number, e.g.
+                          doom-rs -iwad doom2.wad -net 1
+                      (I'm player 1, solo net game; with no addresses the
+                      key player waits for nothing and the game runs)
+                          doom-rs -iwad doom2.wad -net 1 192.0.2.10
+                      (I'm player 1; the other machine runs -net 2 with
+                      my address instead). The default port is 5029.
+  -net HOST[:PORT] ...
+                      Shared node list, host first: every machine runs the
+                      same command line; the first listed node is the host
+                      (key player, console player 1). Each machine's slot
+                      is the list entry whose port equals its -port, so
+                      with multiple machines on one host you need
+                      distinct -port values, e.g.
+                          doom-rs -iwad doom2.wad -net 127.0.0.1:5029 127.0.0.1:5030
+                          doom-rs -iwad doom2.wad -net 127.0.0.1:5029 127.0.0.1:5030 -port 5030
+  -dup N            Tic duplication for slow links (1-9, clamped)
+  -extratic         Send a backup tic in every packet
+  -port N           Local UDP port (1-65535, default 5029); also the
+                    default port for -net addresses
 
 The IWAD is resolved in this order: -iwad, the DOOM_IWAD environment
-variable, then the current directory (doom2.wad, doom2f.wad,
-plutonia.wad, tnt.wad, doomu.wad, doom.wad and doom1.wad).
+variable, then the current directory (doom2.wad, doom2f.wad, plutonia.wad,
+tnt.wad, doomu.wad, doom.wad and doom1.wad).
 
 Keys (defaults): arrows/WASD to move, Ctrl or left mouse to fire, Space
 or right mouse to use, Tab for the automap, 1-9 to select weapons,
 mouse to turn, Escape for the menu.";
 
-fn print_version() {
-    println!("doom-rs {VERSION} (doom-engine {ENGINE_VERSION})");
-}
-
-/// Outcome of splitting the raw arguments into our own flags and the
-/// tokens the engine should see.
-struct PlatformArgs {
+/// The platform shell's own flags. Everything that is not one of these is
+/// handed to the engine's DOOM-style argument parser untouched.
+#[derive(Parser, Debug)]
+#[command(
+    name = "doom-rs",
+    version = VERSION,
+    about = "a faithful rewrite of the DOOM engine in Rust",
+    long_about = LONG_ABOUT
+)]
+struct Cli {
+    /// Run in borderless fullscreen mode
+    #[arg(long)]
     fullscreen: bool,
+    /// Integer scale factor for the 320x200 view
+    #[arg(long, default_value_t = 4, value_parser = clap::value_parser!(u32).range(1..=8))]
     scale: u32,
-    engine_argv: Vec<OsString>,
-}
-
-/// Splits `--fullscreen`, `--scale N`/`--scale=N`, `-h`/`--help` and
-/// `-V`/`--version` out of the raw argument vector. Everything else is
-/// passed to the engine untouched - including the single-dash vanilla
-/// flags, which the engine does not know are not ours.
-fn split_platform_args(raw: &[OsString]) -> Result<Option<PlatformArgs>, String> {
-    let mut engine_argv = Vec::with_capacity(raw.len());
-    engine_argv.push(
-        raw.first()
-            .cloned()
-            .unwrap_or_else(|| OsString::from("doom-rs")),
-    );
-
-    let mut fullscreen = false;
-    let mut scale: u32 = 4;
-
-    let mut it = raw.iter().skip(1);
-    while let Some(token) = it.next() {
-        let text = token.to_string_lossy();
-        if text == "--fullscreen" {
-            fullscreen = true;
-        } else if text == "--scale" {
-            let value = it
-                .next()
-                .ok_or("doom-rs: --scale expects a value between 1 and 8")?;
-            scale = parse_scale(value)?;
-        } else if let Some(value) = text.strip_prefix("--scale=") {
-            scale = parse_scale(OsStr::new(value))?;
-        } else if text == "--help" || text == "-h" {
-            println!("{USAGE}");
-            return Ok(None);
-        } else if text == "--version" || text == "-V" {
-            print_version();
-            return Ok(None);
-        } else {
-            engine_argv.push(token.clone());
-        }
-    }
-    Ok(Some(PlatformArgs {
-        fullscreen,
-        scale,
-        engine_argv,
-    }))
-}
-
-fn parse_scale(token: &OsStr) -> Result<u32, String> {
-    let text = token
-        .to_str()
-        .ok_or("doom-rs: --scale expects a number between 1 and 8")?;
-    let value: u32 = text
-        .trim()
-        .parse()
-        .map_err(|_| format!("doom-rs: --scale expects a number between 1 and 8, got {text:?}"))?;
-    if !(1..=8).contains(&value) {
-        return Err(format!(
-            "doom-rs: --scale must be between 1 and 8, got {value}"
-        ));
-    }
-    Ok(value)
+    /// Everything else is passed to the engine unchanged
+    /// (DOOM-style: -iwad PATH, -warp E M, ...)
+    #[arg(value_name = "ENGINE ARGS", trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
+    engine_args: Vec<OsString>,
 }
 
 /// Standard IWAD search order after `-iwad` and `DOOM_IWAD`, mirroring
@@ -230,23 +205,24 @@ fn detect_game_mode(iwad: &Path) -> GameMode {
 }
 
 fn main() -> ExitCode {
-    init_logging();
-
     let raw: Vec<OsString> = env::args_os().collect();
-    let platform = match split_platform_args(&raw) {
-        Ok(Some(platform)) => platform,
-        // --help / --version: already handled, clean exit from a --no-window run
-        Ok(None) => return ExitCode::SUCCESS,
-        Err(message) => {
-            eprintln!("doom-rs: {message}");
-            eprintln!(
-                "usage: doom-rs [--fullscreen] [--scale N] [ENGINE OPTIONS] (try doom-rs --help)"
-            );
-            return ExitCode::FAILURE;
-        }
-    };
 
-    let engine_args = match args::parse(&platform.engine_argv) {
+    // -nodeb keeps the log quiet, like the original's -nodeb switch; the
+    // default filter is picked before anything logs, so a bad WAD still
+    // gets an error message, just not the banner noise
+    let no_deb = raw.iter().skip(1).any(|token| {
+        token
+            .to_str()
+            .is_some_and(|s| s.eq_ignore_ascii_case("-nodeb"))
+    });
+    init_logging_with_default(if no_deb { "warn" } else { "info" });
+
+    let cli = Cli::parse();
+    let mut engine_argv: Vec<OsString> = vec![OsString::from("doom-rs")];
+    engine_argv.extend(cli.engine_args.iter().cloned());
+    let platform = cli;
+
+    let engine_args = match args::parse(&engine_argv) {
         Ok(engine_args) => engine_args,
         Err(err) => {
             eprintln!("doom-rs: error: {err}");
@@ -259,6 +235,9 @@ fn main() -> ExitCode {
             "ignoring unknown arguments: {}",
             engine_args.unknown.join(" ")
         );
+    }
+    if engine_args.dev_parm {
+        tracing::info!("development mode ON");
     }
 
     let iwad = match resolve_iwad(&engine_args) {
@@ -413,18 +392,19 @@ fn main() -> ExitCode {
         GameMode::Commercial => "commercial",
         GameMode::Retail => "ultimate",
     };
-    println!("doom-rs {VERSION} (doom-engine {ENGINE_VERSION})");
-    println!("IWAD: {} ({mode_name})", iwad.display());
+    // startup summary on the log - stdout stays clean for --help/--version
+    tracing::info!("doom-rs {VERSION} (doom-engine {ENGINE_VERSION})");
+    tracing::info!("IWAD: {} ({mode_name})", iwad.display());
     if !engine_args.pwads.is_empty() {
         let names: Vec<String> = engine_args
             .pwads
             .iter()
             .map(|p| p.display().to_string())
             .collect();
-        println!("PWADs: {}", names.join(", "));
+        tracing::info!("PWADs: {}", names.join(", "));
     }
     if audio.is_none() && !no_sound {
-        println!("audio: disabled (no output device)");
+        tracing::info!("audio: disabled (no output device)");
     }
 
     let event_loop = match winit::event_loop::EventLoop::new() {

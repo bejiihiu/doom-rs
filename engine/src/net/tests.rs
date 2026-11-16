@@ -82,7 +82,8 @@ impl NetGameHooks for MockHooks {
     fn build_ticcmd(&mut self) -> TicCmd {
         self.build_ticcmd
     }
-    fn run_game_tic(&mut self) {
+    fn run_game_tic(&mut self, cmds: [TicCmd; MAXPLAYERS]) {
+        let _ = cmds;
         self.tic_calls += 1;
     }
     fn menu_ticker(&mut self) {

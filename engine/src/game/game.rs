@@ -28,7 +28,7 @@
 
 use std::path::PathBuf;
 
-use crate::args::{DeathmatchMode, EngineArgs, Warp};
+use crate::args::{DeathmatchMode, EngineArgs, NetArgs, Warp};
 use crate::audio::{AudioConfig, Listener, SoundEngine, SoundOrigin};
 use crate::automap::{AutomapInput, AutomapKey, AutomapResponse, AutomapState, PlayerMarker};
 use crate::errors::{EngineError, EngineResult};
@@ -46,7 +46,7 @@ use crate::menu::{
 use crate::mobj::{MobjStore, Skill, SpawnOutcome, SpawnRules, SpawnSpec, SpawnZ};
 use crate::movement::{self, MoveContext, MoveEvent};
 use crate::music::MusicEngine;
-use crate::player::{self, AmmoKind, MAXPLAYERS, Player, PlayerState, Power, Weapon};
+use crate::player::{self, AmmoKind, MAXPLAYERS, Player, PlayerState, Power, TicCmd, Weapon};
 use crate::render::IndexedFramebuffer;
 use crate::resources::ResourceManager;
 use crate::rng::DoomRng;
@@ -144,6 +144,20 @@ pub enum GameAction {
     Victory,
     WorldDone,
     PlayDemo,
+}
+
+/// Where a net game is in its startup lifecycle.
+///
+/// Vanilla runs the setup arbitration (`D_ArbitrateNetStart`) inside
+/// `D_CheckNetGame` before the world exists. We keep the same order but
+/// drive it from the frame loop so the window stays alive and Esc can
+/// abort the wait - see the `-net` docs in `args`.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NetPhase {
+    /// `D_ArbitrateNetStart` is still running; the world is not loaded.
+    WaitingForPlayers,
+    /// Setup finished; the world runs through the net tic path.
+    Playing,
 }
 
 /// The key bindings, in Doom key-code space. Defaults are the linuxdoom
@@ -417,6 +431,43 @@ pub struct Game {
     pub(crate) next_level_zero_based: i32,
     /// `savedescription` from the save menu (empty = default).
     pub(crate) savedescription: String,
+    // -- net --------------------------------------------------------------
+    /// The net engine (sockets, node list, tic buffers). `Some` iff `-net`
+    /// was given. The platform never sees it; the tic governor and the
+    /// wait-for-players screen do.
+    pub(crate) net_engine: Option<crate::net::NetEngine>,
+    /// Monotonic clock for the tic governor (vanilla's `I_GetTime`).
+    /// Boxed so tests can inject a deterministic source.
+    pub(crate) net_time: Box<dyn crate::net::TimeSource>,
+    /// `consistancy[][]` from vanilla's `G_Ticker`; see the `net` module.
+    pub(crate) consistency: crate::net::ConsistencyCheck,
+    /// Startup lifecycle for a net game.
+    pub(crate) net_phase: NetPhase,
+    /// The per-frame platform input handed to `build_ticcmd` - needed
+    /// because the net engine builds tics from `hooks.build_ticcmd()` with
+    /// no arguments.
+    pub(crate) net_platform_input: TicCmdInput,
+    /// Mirror of the net engine's `maketic`: counts ticcmds built by the
+    /// net path, used to read the consistency slot like vanilla's
+    /// `consistancy[consoleplayer][maketic%BACKUPTICS]`.
+    pub(crate) net_maketic: i32,
+    /// The setup packet this node sends (key player) or receives
+    /// (everyone else) at the end of the arbitration.
+    pub(crate) net_settings: Option<crate::net::NetGameSettings>,
+    /// Esc was pressed while waiting for peers; the ticket checks this
+    /// through `NetGameHooks::check_abort_requested`.
+    pub(crate) net_abort_requested: bool,
+    /// Whether this is a network game (`-net` was given). Unlike
+    /// `net_engine`, this flag stays set for the whole game — the tic
+    /// governor borrows the engine out for every governor call.
+    pub(crate) net_playing: bool,
+    /// `ticdup` from `-dup` (1..=9); used for tic duplication and the
+    /// consistency gate. 1 outside of net games.
+    pub(crate) net_ticdup: i32,
+    /// A tic failed inside the governor (`NetGameHooks::run_game_tic`
+    /// cannot return an error); latched here and turned into a
+    /// platform-visible failure after `try_run_tics` returns.
+    pub(crate) net_fatal: Option<EngineError>,
 }
 
 impl Game {
@@ -593,33 +644,241 @@ impl Game {
             load_error: None,
             next_level_zero_based: 0,
             savedescription: String::new(),
+            net_engine: None,
+            net_time: Box::new(crate::net::InstantTimeSource::new()),
+            consistency: crate::net::ConsistencyCheck::new(),
+            net_phase: NetPhase::Playing,
+            net_platform_input: TicCmdInput::NONE,
+            net_maketic: 0,
+            net_settings: None,
+            net_abort_requested: false,
+            net_fatal: None,
+            net_playing: false,
+            net_ticdup: 1,
         };
 
+        // network game: bind sockets now, arbitrate setup before the
+        // world starts - vanilla's D_CheckNetGame happens before
+        // G_InitNew for the same reason
+        if let Some(net_args) = args.net.clone() {
+            game.init_net(&net_args, args)?;
+        }
+
         // start the mode of play requested by the command line
-        if let Some(demo) = &args.play_demo {
-            game.defer_play_demo(demo);
-        } else if let Some(demo) = &args.time_demo {
-            game.timingdemo = true;
-            game.defer_play_demo(demo);
+        if game.net_engine.is_none() {
+            if let Some(demo) = &args.play_demo {
+                game.defer_play_demo(demo);
+            } else if let Some(demo) = &args.time_demo {
+                game.timingdemo = true;
+                game.defer_play_demo(demo);
+            } else {
+                let autostart =
+                    args.skill.is_some() || args.warp.is_some() || args.record.is_some();
+                if autostart {
+                    let skill = args
+                        .skill
+                        .and_then(Skill::from_level)
+                        .unwrap_or(Skill::Medium);
+                    let (episode, map) = warp_to_episode_map(game.gamemode, args.warp);
+                    game.defer_new_game(skill, episode, map);
+                }
+                if let Some(name) = &args.record {
+                    game.start_recording(name);
+                }
+            }
         } else {
-            let autostart = args.skill.is_some() || args.warp.is_some() || args.record.is_some();
-            if autostart {
-                let skill = args
-                    .skill
-                    .and_then(Skill::from_level)
-                    .unwrap_or(Skill::Medium);
-                let (episode, map) = warp_to_episode_map(game.gamemode, args.warp);
-                game.defer_new_game(skill, episode, map);
-            }
-            if let Some(name) = &args.record {
-                game.start_recording(name);
-            }
+            // the world starts once the setup arbitration finishes and the
+            // players know the shared skill/episode/map
+            tracing::info!("net: waiting for players (esc to abort)");
         }
 
         // save games already on disk feed the menu's slot list
         refresh_save_slots(&mut game);
 
         Ok(game)
+    }
+
+    /// Bind sockets and prepare the net game (`-net`). The world starts
+    /// once the setup arbitration completes - vanilla's `D_CheckNetGame`
+    /// happens before `G_InitNew` for the same reason. ESC aborts the wait.
+    fn init_net(&mut self, net_args: &NetArgs, args: &EngineArgs) -> EngineResult<()> {
+        if args.play_demo.is_some() || args.time_demo.is_some() || args.record.is_some() {
+            return Err(EngineError::Config(
+                "-record/-playdemo/-timedemo are not supported in a net game".into(),
+            ));
+        }
+        let (console_player, peers) = match net_args {
+            NetArgs::Vanilla {
+                console_player,
+                hosts,
+            } => ((*console_player).saturating_sub(1), hosts.clone()),
+            NetArgs::SharedList { hosts } => {
+                if hosts.is_empty() {
+                    return Err(EngineError::Config(
+                        "-net expects at least one node address".into(),
+                    ));
+                }
+                let slot = hosts
+                    .iter()
+                    .position(|addr| addr.port() == args.net_port)
+                    .ok_or_else(|| {
+                        EngineError::Config(format!(
+                            "-net: this machine is not in the node list (no entry bound on port \
+                             {}); pick a unique -port and list it here",
+                            args.net_port
+                        ))
+                    })?;
+                let peers = hosts
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| *index != slot)
+                    .map(|(_, addr)| *addr)
+                    .collect();
+                (slot, peers)
+            }
+        };
+        // the key player sends these; everyone else applies what it receives
+        let (episode, map) = warp_to_episode_map(self.gamemode, args.warp);
+        let settings = crate::net::NetGameSettings {
+            // our skill levels are 1..=5; 3 is -skill 3 ("medium"), the default
+            skill: i32::from(args.skill.unwrap_or(3)),
+            deathmatch: i32::from(args.deathmatch_level()),
+            nomonsters: args.no_monsters,
+            respawn: args.respawn,
+            // the setup packet packs episode*64+map into one byte
+            episode: i32::from(episode).clamp(0, 3),
+            map: i32::from(map).clamp(1, 63),
+        };
+        let config = crate::net::NetConfig {
+            console_player,
+            ticdup: args.tic_dup,
+            extratics: args.extratics,
+            hosts: peers,
+            port: args.net_port,
+        };
+        let engine = crate::net::NetEngine::start(config).map_err(EngineError::from)?;
+        self.net_engine = Some(engine);
+        self.net_settings = Some(settings);
+        self.net_phase = NetPhase::WaitingForPlayers;
+        self.consoleplayer = console_player;
+        self.displayplayer = console_player;
+        self.net_playing = true;
+        self.net_ticdup = args.tic_dup.clamp(1, 9);
+        Ok(())
+    }
+
+    /// Whether this is a network game (`-net` was given).
+    pub fn is_net_game(&self) -> bool {
+        self.net_playing
+    }
+
+    /// `D_ArbitrateNetStart`, one step per rendered frame. The key player
+    /// sends the setup packet until every peer acknowledged; everyone else
+    /// waits for the key player's setup packet. `None` = still waiting.
+    fn net_arbitration_step(&mut self) -> EngineResult<Option<crate::net::NetGameSettings>> {
+        let settings = self
+            .net_settings
+            .ok_or_else(|| EngineError::Resource("net settings missing".into()))?;
+        let mut engine = self
+            .net_engine
+            .take()
+            .ok_or_else(|| EngineError::Resource("net engine missing".into()))?;
+        let result = engine.arbitration_step(self, &settings);
+        self.net_engine = Some(engine);
+        Ok(result?)
+    }
+
+    /// The arbitration finished: apply the shared settings and start the
+    /// game (vanilla's `D_CheckNetGame` tail, then `G_InitNew`).
+    fn finish_net_game(&mut self, settings: crate::net::NetGameSettings) {
+        self.gameskill =
+            Skill::from_level(settings.skill.clamp(1, 5) as u8).unwrap_or(Skill::Medium);
+        self.deathmatch_mode = match settings.deathmatch {
+            1 => DeathmatchMode::Duel,
+            2 => DeathmatchMode::Alt,
+            _ => DeathmatchMode::Off,
+        };
+        self.deathmatch = settings.deathmatch != 0;
+        self.nomonsters = settings.nomonsters;
+        self.respawnmonsters = settings.respawn;
+        // mark the in-game players through the hooks (vanilla's numplayers loop)
+        if let Some(engine) = self.net_engine.take() {
+            engine.finish_check_net_game(self);
+            self.net_engine = Some(engine);
+        }
+        self.netgame = true;
+        self.net_phase = NetPhase::Playing;
+        // vanilla: the menu refuses almost everything in a netgame
+        self.menu.set_context(MenuContext {
+            gamemode: self.gamemode,
+            netgame: true,
+            usergame: true,
+            in_level: true,
+            demoplayback: false,
+            gametic: self.gametic as u64,
+            language_english: true,
+        });
+        let episode = settings.episode.clamp(1, 4) as u8;
+        let map = settings.map.clamp(1, 63) as u8;
+        tracing::info!("net: synchronized, starting E{episode}M{map}");
+        self.defer_new_game(self.gameskill, episode, map);
+    }
+
+    /// Leave the network game politely (vanilla's `D_QuitNetGame`): tell the
+    /// surviving nodes we are out, a few times, so nobody waits on us.
+    /// No-op outside a net game or before the world started.
+    pub fn net_quit(&mut self) {
+        let Some(mut engine) = self.net_engine.take() else {
+            return;
+        };
+        engine.quit_net_game(self);
+        // the engine is consumed here; the game is on its way out anyway
+        tracing::info!("net: left the game");
+    }
+
+    /// One frame in a net game: pump arbitration until everyone synced,
+    /// then hand the tic governor the wall-clock pacing it needs. The
+    /// normal `elapsed_ms` accumulator is unused - the governor paces from
+    /// the monotonic clock, like vanilla's `TryRunTics`.
+    pub(crate) fn advance_net(
+        &mut self,
+        input: &TicCmdInput,
+        _elapsed_ms: u64,
+        fb: &mut IndexedFramebuffer,
+    ) -> EngineResult<()> {
+        self.net_platform_input = *input;
+
+        if self.net_phase == NetPhase::WaitingForPlayers {
+            if let Some(settings) = self.net_arbitration_step()? {
+                self.finish_net_game(settings);
+            }
+            super::render::render_frame(fb, self)?;
+            self.update_sounds();
+            return Ok(());
+        }
+
+        // take the engine and the clock out so the hooks (which borrow the
+        // whole game) can be passed to the governor; both go back right after
+        let mut engine = self
+            .net_engine
+            .take()
+            .ok_or_else(|| EngineError::Resource("net engine missing".into()))?;
+        let time = std::mem::replace(
+            &mut self.net_time,
+            Box::new(crate::net::InstantTimeSource::new()),
+        );
+        let outcome = crate::net::try_run_tics(&mut engine, time.as_ref(), self);
+        self.net_time = time;
+        self.net_engine = Some(engine);
+
+        if let Some(fatal) = self.net_fatal.take() {
+            return Err(fatal);
+        }
+        outcome.map_err(EngineError::from)?;
+
+        super::render::render_frame(fb, self)?;
+        self.update_sounds();
+        Ok(())
     }
 
     /// Whether the player asked to quit. The platform shell exits its
@@ -660,12 +919,19 @@ impl Game {
 
     /// One frame, driven by the platform: one game tic plus a rendered
     /// frame, then the sound update. This is the headless/test path -
-    /// demos and net games use it exclusively.
+    /// demos use it exclusively; net games error out (they are driven by
+    /// the net tic governor through [`Game::advance`]).
     pub fn tick_input(
         &mut self,
         input: &TicCmdInput,
         fb: &mut IndexedFramebuffer,
     ) -> EngineResult<()> {
+        if self.net_playing {
+            return Err(EngineError::Config(
+                "tick_input is the headless single-player path; net games run through advance()"
+                    .into(),
+            ));
+        }
         let merged = self.sample_local_input(input);
         self.run_tic(&merged)?;
         super::render::render_frame(fb, self)?;
@@ -676,13 +942,18 @@ impl Game {
     /// One frame with wall-clock pacing: `elapsed_ms` milliseconds of
     /// game time are accumulated and as many tics as fit run (at most 4,
     /// so the engine never spirals). Exactly one frame is rendered at
-    /// the end, like vanilla's `D_DoomLoop`.
+    /// the end, like vanilla's `D_DoomLoop`. In a net game this routes to
+    /// the net tic governor instead (`TryRunTics`); `elapsed_ms` is then
+    /// unused.
     pub fn advance(
         &mut self,
         input: &TicCmdInput,
         elapsed_ms: u64,
         fb: &mut IndexedFramebuffer,
     ) -> EngineResult<()> {
+        if self.net_playing {
+            return self.advance_net(input, elapsed_ms, fb);
+        }
         const MS_PER_TIC: u64 = 1000 / TICRATE as u64;
         let merged = self.sample_local_input(input);
         self.tic_accumulator_ms = self.tic_accumulator_ms.saturating_add(elapsed_ms);
@@ -702,6 +973,17 @@ impl Game {
     /// state that feeds [`TicCmdInput`] is tracked internally and merged
     /// with the platform's per-tic input at [`Game::tick_input`] time.
     pub fn handle_event(&mut self, event: &InputEvent) -> bool {
+        // while the net setup runs the screen is modal: Esc aborts the
+        // sync, everything else is swallowed
+        if self.net_phase == NetPhase::WaitingForPlayers {
+            if let InputEvent::KeyDown(key) = *event {
+                if key == keys::ESCAPE {
+                    self.gamekeydown[keys::ESCAPE as usize] = true;
+                    self.net_abort_requested = true;
+                }
+            }
+            return true;
+        }
         match *event {
             InputEvent::KeyDown(key) => self.key_down(key),
             InputEvent::KeyUp(key) => {
@@ -766,7 +1048,7 @@ impl Game {
     /// Fold the platform's held-key state and momentary mouse deltas
     /// into the local tic command. Consumes the mouse deltas like
     /// vanilla's `mousex = mousey = 0` reset.
-    fn sample_local_input(&mut self, input: &TicCmdInput) -> TicCmdInput {
+    pub(crate) fn sample_local_input(&mut self, input: &TicCmdInput) -> TicCmdInput {
         // merge platform-held state with the OS-event mirror
         let mut merged = *input;
         let held = |k: u8| self.gamekeydown[k as usize];
@@ -1481,10 +1763,15 @@ impl Game {
     /// `G_DoNewGame` - reset the one-way demo/net state and start fresh.
     fn do_new_game(&mut self) {
         self.demoplayback = false;
-        self.playeringame = [true, false, false, false];
-        self.netgame = false;
+        if self.net_playing {
+            // net game: the node list and the player list were set up by the
+            // arbitration (finish_net_game); do not clobber them
+        } else {
+            self.playeringame = [true, false, false, false];
+            self.netgame = false;
+            self.consoleplayer = 0;
+        }
         self.secretexit = false;
-        self.consoleplayer = 0;
         if let Some((skill, episode, map)) = self.deferred.take() {
             self.init_new(skill, episode, map);
         } else {
@@ -2090,9 +2377,67 @@ impl Game {
     /// `G_Ticker` - one game tic. Vanilla calls this from `D_DoomLoop`;
     /// here it is driven by [`Game::tick_input`]/[`Game::advance`].
     pub(crate) fn run_tic(&mut self, input: &TicCmdInput) -> EngineResult<()> {
+        self.run_tic_world(None, input)
+    }
+
+    /// The net-ticker variant: the governor resolves every player's command
+    /// from `netcmds` before the tic runs (the local one comes back through
+    /// the node-0 rebound, like vanilla); the world just consumes them.
+    pub(crate) fn run_tic_net(&mut self, cmds: [TicCmd; MAXPLAYERS]) -> EngineResult<()> {
+        self.run_tic_world(Some(cmds), &TicCmdInput::NONE)
+    }
+
+    /// Single-player command resolution: demo playback for the console
+    /// player, the input builder otherwise, inert commands for the other
+    /// slots (which are not in play).
+    fn build_sp_cmds(&mut self, input: &TicCmdInput) -> [TicCmd; MAXPLAYERS] {
+        let mut cmds = [TicCmd::default(); MAXPLAYERS];
+        for (i, slot) in cmds.iter_mut().enumerate() {
+            if !self.playeringame[i] {
+                *slot = TicCmd::default();
+            } else if i == self.consoleplayer {
+                if let Some(playback) = self.demo_playback.as_mut() {
+                    let cmd = playback.read_ticcmd();
+                    if playback.finished() {
+                        self.end_demo_playback();
+                    }
+                    *slot = cmd;
+                } else {
+                    let cmd = self.builder.build(input);
+                    if self.demorecording {
+                        if let Some(recording) = self.demo_recording.as_mut() {
+                            // 'q' ends the recording, like vanilla
+                            if self.gamekeydown[b'q' as usize] {
+                                self.end_demo_recording();
+                            } else if !recording.write_ticcmd(&cmd) {
+                                self.demorecording = false;
+                                self.players[self.consoleplayer].message =
+                                    Some("Demo buffer is full".to_string());
+                            }
+                        }
+                    }
+                    *slot = cmd;
+                }
+            } else {
+                *slot = TicCmd::default();
+            }
+        }
+        cmds
+    }
+
+    /// The tick body shared by both paths; `cmds[i]` is this tic's command
+    /// for player i.
+    fn run_tic_world(
+        &mut self,
+        net_cmds: Option<[TicCmd; MAXPLAYERS]>,
+        input: &TicCmdInput,
+    ) -> EngineResult<()> {
         if let Some(err) = self.load_error.take() {
             return Err(EngineError::Resource(err));
         }
+
+        // vanilla ticks the menu ticker before the game ticker (M_Ticker)
+        self.menu.tick(self.gametic as u64);
 
         // do player reborns if needed
         for i in 0..MAXPLAYERS {
@@ -2124,8 +2469,21 @@ impl Game {
             ));
         }
 
+        // get commands (after the state transitions, like vanilla - a
+        // deferred NewGame can arm demo recording mid-tic)
+        let net = net_cmds.is_some();
+        let cmds = match net_cmds {
+            Some(cmds) => cmds,
+            None => self.build_sp_cmds(input),
+        };
+        for (i, cmd) in cmds.into_iter().enumerate() {
+            if self.playeringame[i] {
+                self.players[i].cmd = cmd;
+            }
+        }
+
         // turbo cheat (`%s is turbo!` when the player builds over the
-        // threshold with -turbo)
+        // threshold with -turbo); vanilla reads the freshly copied cmd
         for i in 0..MAXPLAYERS {
             if self.playeringame[i]
                 && self.players[i].cmd.forward_move > TURBO_THRESHOLD as i8
@@ -2137,40 +2495,27 @@ impl Game {
             }
         }
 
-        // get commands, check consistency
-        let buf = (self.gametic % BACKUPTICS) as usize;
-        let _ = buf;
-        for i in 0..MAXPLAYERS {
-            if !self.playeringame[i] {
-                continue;
-            }
-            let cmd = if i == self.consoleplayer {
-                if let Some(playback) = self.demo_playback.as_mut() {
-                    let cmd = playback.read_ticcmd();
-                    if playback.finished() {
-                        self.end_demo_playback();
-                    }
-                    cmd
-                } else {
-                    let cmd = self.builder.build(input);
-                    if self.demorecording {
-                        if let Some(recording) = self.demo_recording.as_mut() {
-                            // 'q' ends the recording, like vanilla
-                            if self.gamekeydown[b'q' as usize] {
-                                self.end_demo_recording();
-                            } else if !recording.write_ticcmd(&cmd) {
-                                self.demorecording = false;
-                                self.players[self.consoleplayer].message =
-                                    Some("Demo buffer is full".to_string());
-                            }
-                        }
-                    }
-                    cmd
-                }
-            } else {
-                crate::player::TicCmd::default()
+        // consistency check (vanilla's G_Ticker tail): only in net games,
+        // only on non-duplicated tics
+        if net {
+            let gate = crate::net::ConsistencyGate {
+                netgame: true,
+                netdemo: false,
+                ticdup: self.net_ticdup,
             };
-            self.players[i].cmd = cmd;
+            for i in 0..MAXPLAYERS {
+                if !self.playeringame[i] {
+                    continue;
+                }
+                let cmd = self.players[i].cmd;
+                let source_x = self.players[i]
+                    .mo
+                    .and_then(|id| self.store.mobj(id))
+                    .map(|mo| mo.x.to_raw())
+                    .unwrap_or(self.rng.index() as i32);
+                self.consistency
+                    .check_and_store(&cmd, gate, self.gametic, i, source_x)?;
+            }
         }
 
         // check for special buttons
@@ -2211,7 +2556,10 @@ impl Game {
             GameState::DemoScreen => {}
         }
 
-        self.gametic += 1;
+        // in a net game the tic governor owns the counter (hooks::set_gametic)
+        if !net {
+            self.gametic += 1;
+        }
         Ok(())
     }
 
@@ -3147,6 +3495,10 @@ impl Game {
 
     /// `ST_Ticker` - the status bar face machine, one step per tic.
     fn st_ticker(&mut self) {
+        // vanilla: st_randomnumber = M_Random() runs first, every tic,
+        // unconditionally - the shared stream must stay in lockstep
+        // between the machines even when there is no avatar to stare at
+        let face_random = self.rng.next();
         let console = self.consoleplayer;
         if !self.playeringame[console] {
             return;
@@ -3183,7 +3535,7 @@ impl Game {
             player_angle: angle,
             attacker_angle,
             weapon_owned: self.players[console].weaponowned,
-            random: i32::from(self.rng.next()),
+            random: i32::from(face_random),
         };
         self.face.tick(&inputs);
     }
@@ -4185,12 +4537,13 @@ impl Game {
     }
 
     /// Flush the demo recording to disk (marker byte included).
-    fn end_demo_recording(&mut self) {
+    pub(crate) fn end_demo_recording(&mut self) {
         let Some(recording) = self.demo_recording.take() else {
             return;
         };
         self.demorecording = false;
         let bytes = recording.finish();
+        eprintln!("demo finish: {} bytes", bytes.len());
         let name = if self.demoname.ends_with(".lmp") {
             self.demoname.clone()
         } else {

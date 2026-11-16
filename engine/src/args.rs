@@ -12,6 +12,20 @@
 //!   so PWAD paths may contain spaces as long as they are one token.
 //! - `-turbo` clamps to 10..=400 like vanilla (`scale < 10 -> 10`,
 //!   `scale > 400 -> 400`) and logs a warning when it clamps.
+//! - `-net` takes either the vanilla form `-net <n> [host[:port] ...]`
+//!   (`n` = 1-based console player number, 1-8) or a shared node list
+//!   `-net <host[:port]> [...]` where the first entry is the host (key
+//!   player, `consoleplayer == 0`) and every machine runs the same command
+//!   line; a machine's slot is the list entry whose port equals the bound
+//!   port (`-port`, default 5029). The list runs until the next
+//!   dash-token, like vanilla. Hosts resolve through the system resolver;
+//!   a token without a port uses the `-port` value (anywhere on the
+//!   command line, like vanilla's `-port` pre-parse).
+//! - `-dup N` clamps to 1..=9 like vanilla; `-extratic` sends a backup tic.
+//! - `-port N` binds the local UDP port (and is the default `-net` port),
+//!   `1..=65535`. There is no broadcast discovery in the original engine
+//!   and we do not invent one: explicit unicast node addresses are the
+//!   only way to set up a net game.
 //! - Unknown `-keys` (and stray bare tokens) are collected into
 //!   [`EngineArgs::unknown`] with a warning, not an error — they are
 //!   reported so typos are debuggable, but they must not crash the game.
@@ -20,11 +34,13 @@
 //! fails to parse) is an error instead of silently producing map 0.
 
 use std::ffi::{OsStr, OsString};
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use tracing::warn;
 
 use crate::errors::{EngineError, EngineResult};
+use crate::net::{DOOMPORT, MAXNETNODES};
 
 /// How `-warp` interprets its numbers.
 ///
@@ -61,11 +77,42 @@ pub enum DeathmatchMode {
     Alt,
 }
 
+/// Where the `-net` argument was given as a node list.
+///
+/// Two forms are accepted:
+///
+/// - `-net <n> [host[:port] ...]` — the vanilla shape: `<n>` is the
+///   1-based console player number, the remaining tokens are the *peer*
+///   nodes (in any order; every node gets the same player numbering).
+/// - `-net <host[:port]> [...]` — a shared node list, host (key player)
+///   first. Every machine runs the same command line; its own node index
+///   is derived from the bound port (see the `-net` entry in `parse`).
+///
+/// `host` may be an IPv4 literal, an IPv6 literal (bare `::1` or
+/// bracketed `[::1]:5029`) or a hostname (resolved via the system
+/// resolver, first address wins, like vanilla's `gethostbyname`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NetArgs {
+    /// `-net <n> [host[:port] ...]` — vanilla leading console number.
+    Vanilla {
+        /// 1-based console player number, `1..=MAXNETNODES`.
+        console_player: usize,
+        /// The peer nodes, in node order after this console.
+        hosts: Vec<SocketAddr>,
+    },
+    /// `-net <host[:port]> [...]` — shared node list, host first.
+    SharedList {
+        /// The full node list; the first entry is the host (key player,
+        /// `consoleplayer == 0`). Every listed node needs a distinct port.
+        hosts: Vec<SocketAddr>,
+    },
+}
+
 /// Parsed engine command-line arguments.
 ///
 /// Paths are kept as raw [`OsString`]/[`PathBuf`] so non-UTF-8 file names
 /// survive; everything else is a validated scalar.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EngineArgs {
     /// `-iwad PATH` — explicit IWAD. `None` searches the standard locations.
     pub iwad: Option<PathBuf>,
@@ -103,9 +150,47 @@ pub struct EngineArgs {
     pub stat_copy: Option<String>,
     /// `-config PATH` — explicit path to the config file.
     pub config_path: Option<PathBuf>,
+    /// `-net ...` — network game parameters (see [`NetArgs`]).
+    pub net: Option<NetArgs>,
+    /// `-dup N` — tic duplication for slow links, `1..=9` (vanilla clamps).
+    pub tic_dup: i32,
+    /// `-extratic` — send one backup tic in every packet.
+    pub extratics: bool,
+    /// `-port N` — local UDP port the game binds (and the default port for
+    /// `-net` hosts), `1..=65535`. Defaults to the vanilla `DOOMPORT`.
+    pub net_port: u16,
     /// Keys (and stray bare tokens) we did not recognize, verbatim.
     /// Never an error; logged as a warning at parse time.
     pub unknown: Vec<String>,
+}
+
+impl Default for EngineArgs {
+    fn default() -> Self {
+        Self {
+            iwad: None,
+            pwads: Vec::new(),
+            play_demo: None,
+            time_demo: None,
+            warp: None,
+            skill: None,
+            no_monsters: false,
+            turbo: None,
+            fast: false,
+            respawn: false,
+            deathmatch: DeathmatchMode::Off,
+            no_sound: false,
+            no_deb: false,
+            dev_parm: false,
+            record: None,
+            stat_copy: None,
+            config_path: None,
+            net: None,
+            tic_dup: 1,
+            extratics: false,
+            net_port: DOOMPORT,
+            unknown: Vec::new(),
+        }
+    }
 }
 
 impl EngineArgs {
@@ -187,6 +272,136 @@ fn parse_warp(argv: &[OsString], i: usize) -> EngineResult<(Warp, usize)> {
     Ok((warp, end))
 }
 
+/// Resolve a `host` name against the system resolver, first address
+/// wins — like vanilla's `gethostbyname`, just with a proper error path.
+fn resolve_host(host: &str, port: u16, raw_token: &str) -> EngineResult<SocketAddr> {
+    use std::net::ToSocketAddrs;
+    let mut addrs = (host, port).to_socket_addrs().map_err(|err| {
+        EngineError::Config(format!("-net: could not resolve {raw_token:?}: {err}"))
+    })?;
+    addrs
+        .next()
+        .ok_or_else(|| EngineError::Config(format!("-net: {raw_token:?} resolved to no addresses")))
+}
+
+/// Parse a `host[:port]` token from the `-net` list.
+fn parse_net_host(token: &OsString, default_port: u16) -> EngineResult<SocketAddr> {
+    let text = lossy(token);
+    let raw = text.as_str();
+    // bracketed IPv6: "[::1]" or "[::1]:5029"
+    if let Some(rest) = raw.strip_prefix('[') {
+        let Some((host, tail)) = rest.split_once(']') else {
+            return Err(EngineError::Config(format!(
+                "-net: unterminated bracket in host {raw:?}"
+            )));
+        };
+        let port = match tail.strip_prefix(':') {
+            Some(value) => parse_port(value, raw)?,
+            None if tail.is_empty() => default_port,
+            None => {
+                return Err(EngineError::Config(format!(
+                    "-net: unexpected trailing characters in host {raw:?}"
+                )));
+            }
+        };
+        return resolve_host(host, port, raw);
+    }
+    let colons = raw.matches(':').count();
+    match colons {
+        0 => resolve_host(raw, default_port, raw),
+        1 => {
+            let split = raw.rfind(':').expect("one colon");
+            let (host, port) = raw.split_at(split);
+            let host = host.trim();
+            if host.is_empty() {
+                return Err(EngineError::Config(format!(
+                    "-net: missing host in {raw:?}"
+                )));
+            }
+            resolve_host(host, parse_port(&port[1..], raw)?, raw)
+        }
+        // bare IPv6 literal: "::1" etc. — the port comes from -port
+        _ => resolve_host(raw, default_port, raw),
+    }
+}
+
+/// Parse a `port` token from the `-net` list or `-port`.
+fn parse_port(text: &str, raw_token: &str) -> EngineResult<u16> {
+    let port: u16 = text
+        .trim()
+        .parse()
+        .map_err(|_| EngineError::Config(format!("-net: invalid port in {raw_token:?}")))?;
+    if port == 0 {
+        return Err(EngineError::Config(format!(
+            "-net: port 0 is not a valid node address in {raw_token:?}"
+        )));
+    }
+    Ok(port)
+}
+
+/// Parse the tokens following `-net` up to the next dash-token.
+fn parse_net(tokens: &[OsString], default_port: u16) -> EngineResult<NetArgs> {
+    let Some(first) = tokens.first() else {
+        return Err(EngineError::Config(
+            "-net expects a console player number or a list of node addresses".into(),
+        ));
+    };
+    let first_text = lossy(first);
+    let hosts_from = |from: usize| -> EngineResult<Vec<SocketAddr>> {
+        tokens[from..]
+            .iter()
+            .map(|token| parse_net_host(token, default_port))
+            .collect()
+    };
+    if let Ok(number) = first_text.trim().parse::<i64>() {
+        if !(1..=MAXNETNODES as i64).contains(&number) {
+            return Err(EngineError::Config(format!(
+                "-net player number must be between 1 and {MAXNETNODES}, got {number}"
+            )));
+        }
+        let hosts = hosts_from(1)?;
+        if hosts.len() + 1 > MAXNETNODES {
+            return Err(EngineError::Config(format!(
+                "-net: too many nodes: {} (max {MAXNETNODES})",
+                hosts.len() + 1
+            )));
+        }
+        return Ok(NetArgs::Vanilla {
+            console_player: number as usize,
+            hosts,
+        });
+    }
+    let hosts = hosts_from(0)?;
+    if hosts.len() > MAXNETNODES {
+        return Err(EngineError::Config(format!(
+            "-net: too many nodes: {} (max {MAXNETNODES})",
+            hosts.len()
+        )));
+    }
+    Ok(NetArgs::SharedList { hosts })
+}
+
+/// Pre-scan `argv` for `-port` so the `-net` list can use it as the
+/// default port regardless of where on the command line it appears —
+/// vanilla parses `-port` before `-net` for the same reason.
+fn port_default(argv: &[OsString]) -> u16 {
+    let mut i = 1;
+    while i < argv.len() {
+        if argv[i]
+            .to_str()
+            .map(|s| s.eq_ignore_ascii_case("-port"))
+            .unwrap_or(false)
+            && let Some(value) = argv.get(i + 1)
+            && let Ok(port) = value.to_string_lossy().trim().parse::<u16>()
+            && port != 0
+        {
+            return port;
+        }
+        i += 1;
+    }
+    DOOMPORT
+}
+
 /// Parse a full `argv` (including the program name at index 0), mirroring
 /// `std::env::args_os()`. The program name is skipped.
 ///
@@ -197,6 +412,7 @@ fn parse_warp(argv: &[OsString], i: usize) -> EngineResult<(Warp, usize)> {
 /// collected and reported.
 pub fn parse(argv: &[OsString]) -> EngineResult<EngineArgs> {
     let mut args = EngineArgs::default();
+    let default_port = port_default(argv);
     let mut i = 1; // argv[0] is the program name, like vanilla myargv
 
     while i < argv.len() {
@@ -252,6 +468,46 @@ pub fn parse(argv: &[OsString]) -> EngineResult<EngineArgs> {
                     warn!("-turbo {n} out of range, clamping to {clamped}");
                 }
                 args.turbo = Some(clamped);
+                i += 2;
+            }
+            Some("-net") => {
+                // vanilla: the list runs until the next dash-token
+                i += 1;
+                let mut tokens = Vec::new();
+                while i < argv.len() && !is_dash_token(&argv[i]) {
+                    tokens.push(argv[i].clone());
+                    i += 1;
+                }
+                args.net = Some(parse_net(&tokens, default_port)?);
+            }
+            Some("-dup") => {
+                let value = value_after(argv, i, "-dup")?;
+                let n = parse_number(value, "-dup")?;
+                let clamped = n.clamp(1, 9);
+                if clamped != n {
+                    warn!("-dup {n} out of range, clamping to {clamped}");
+                }
+                args.tic_dup = clamped as i32;
+                i += 2;
+            }
+            Some("-extratic") => {
+                args.extratics = true;
+                i += 1;
+            }
+            Some("-port") => {
+                let value = value_after(argv, i, "-port")?;
+                let text = value.to_str().ok_or_else(|| {
+                    EngineError::Config("-port expects a number, got non-UTF-8".into())
+                })?;
+                let port: u32 = text.trim().parse().map_err(|_| {
+                    EngineError::Config(format!("-port expects a number, got {text:?}"))
+                })?;
+                if !(1..=65535).contains(&port) {
+                    return Err(EngineError::Config(format!(
+                        "-port must be between 1 and 65535, got {port}"
+                    )));
+                }
+                args.net_port = port as u16;
                 i += 2;
             }
             Some("-statcopy") => {
@@ -536,6 +792,169 @@ mod tests {
         let args = parse(&argv(&["-file", "a.wad", "-frobnicate"])).unwrap();
         assert_eq!(args.pwads, vec![PathBuf::from("a.wad")]);
         assert_eq!(args.unknown, vec!["-frobnicate".to_string()]);
+    }
+
+    #[test]
+    fn net_vanilla_form_parses_addresses() {
+        let args = parse(&argv(&["-net", "1", "127.0.0.1:5029", "192.168.0.2:5030"])).unwrap();
+        match &args.net {
+            Some(NetArgs::Vanilla {
+                console_player,
+                hosts,
+            }) => {
+                assert_eq!(*console_player, 1);
+                assert_eq!(
+                    hosts,
+                    &vec![
+                        "127.0.0.1:5029".parse::<SocketAddr>().unwrap(),
+                        "192.168.0.2:5030".parse::<SocketAddr>().unwrap(),
+                    ]
+                );
+            }
+            other => panic!("expected vanilla net args, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn net_vanilla_form_with_no_hosts() {
+        let args = parse(&argv(&["-net", "2"])).unwrap();
+        match &args.net {
+            Some(NetArgs::Vanilla {
+                console_player,
+                hosts,
+            }) => {
+                assert_eq!(*console_player, 2);
+                assert!(hosts.is_empty());
+            }
+            other => panic!("expected vanilla net args, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn net_shared_list_form_keeps_node_order() {
+        let args = parse(&argv(&["-net", "127.0.0.1:5029", "127.0.0.1:5030"])).unwrap();
+        match &args.net {
+            Some(NetArgs::SharedList { hosts }) => {
+                assert_eq!(
+                    hosts,
+                    &vec![
+                        "127.0.0.1:5029".parse::<SocketAddr>().unwrap(),
+                        "127.0.0.1:5030".parse::<SocketAddr>().unwrap(),
+                    ]
+                );
+            }
+            other => panic!("expected a shared list, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn net_hosts_default_to_doomport_and_port_wins() {
+        let args = parse(&argv(&["-net", "1", "127.0.0.1", "-port", "5099"])).unwrap();
+        match &args.net {
+            Some(NetArgs::Vanilla { hosts, .. }) => {
+                // -port anywhere on the command line wins, like vanilla
+                assert_eq!(hosts[0], "127.0.0.1:5099".parse::<SocketAddr>().unwrap());
+            }
+            other => panic!("expected vanilla net args, got {other:?}"),
+        }
+        assert_eq!(args.net_port, 5099);
+    }
+
+    #[test]
+    fn net_default_port_is_doomport_without_port_flag() {
+        let args = parse(&argv(&["-net", "1", "10.0.0.2"])).unwrap();
+        match &args.net {
+            Some(NetArgs::Vanilla { hosts, .. }) => {
+                assert_eq!(
+                    hosts[0],
+                    format!("10.0.0.2:{DOOMPORT}")
+                        .parse::<SocketAddr>()
+                        .unwrap()
+                );
+            }
+            other => panic!("expected vanilla net args, got {other:?}"),
+        }
+        assert_eq!(args.net_port, DOOMPORT);
+    }
+
+    #[test]
+    fn net_list_ends_at_the_next_flag() {
+        let args = parse(&argv(&["-net", "1", "127.0.0.1:5030", "-fast"])).unwrap();
+        match &args.net {
+            Some(NetArgs::Vanilla { hosts, .. }) => assert_eq!(hosts.len(), 1),
+            other => panic!("expected vanilla net args, got {other:?}"),
+        }
+        assert!(args.fast);
+    }
+
+    #[test]
+    fn net_rejects_out_of_range_player_number() {
+        assert!(parse(&argv(&["-net", "0"])).is_err());
+        assert!(parse(&argv(&["-net", "9"])).is_err());
+    }
+
+    #[test]
+    fn net_rejects_too_many_nodes() {
+        let hosts: Vec<String> = (0..MAXNETNODES)
+            .map(|i| format!("10.0.0.{}:5029", i + 1))
+            .collect();
+        let mut tokens = vec!["-net", "1"];
+        tokens.extend(hosts.iter().map(String::as_str));
+        assert!(parse(&argv(&tokens)).is_err());
+    }
+
+    #[test]
+    fn net_rejects_bad_ports_and_bad_hosts() {
+        assert!(parse(&argv(&["-net", "1", "127.0.0.1:0"])).is_err());
+        assert!(parse(&argv(&["-net", "1", "127.0.0.1:99999"])).is_err());
+        assert!(parse(&argv(&["-net", "1", "127.0.0.1:abc"])).is_err());
+        assert!(parse(&argv(&["-net", "1", "127.0.0.1:"])).is_err());
+        // bogus hostname: the resolver errors out, like vanilla's I_Error
+        assert!(parse(&argv(&["-net", "1", "bogus.invalid"])).is_err());
+    }
+
+    #[test]
+    fn net_rejects_empty_list_and_oversized_shared_list() {
+        assert!(parse(&argv(&["-net"])).is_err());
+        let hosts: Vec<String> = (0..=MAXNETNODES)
+            .map(|i| format!("10.0.0.{}:5029", i + 1))
+            .collect();
+        let with_net: Vec<&str> = std::iter::once("-net")
+            .chain(hosts.iter().map(String::as_str))
+            .collect();
+        assert!(parse(&argv(&with_net)).is_err());
+    }
+
+    #[test]
+    fn net_accepts_bracketed_ipv6() {
+        let args = parse(&argv(&["-net", "1", "[::1]:5030"])).unwrap();
+        match &args.net {
+            Some(NetArgs::Vanilla { hosts, .. }) => {
+                assert_eq!(hosts[0], "[::1]:5030".parse::<SocketAddr>().unwrap());
+            }
+            other => panic!("expected vanilla net args, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn dup_clamps_like_vanilla_and_rejects_garbage() {
+        assert_eq!(parse(&argv(&["-dup", "1"])).unwrap().tic_dup, 1);
+        assert_eq!(parse(&argv(&["-dup", "9"])).unwrap().tic_dup, 9);
+        assert_eq!(parse(&argv(&["-dup", "0"])).unwrap().tic_dup, 1);
+        assert_eq!(parse(&argv(&["-dup", "99"])).unwrap().tic_dup, 9);
+        assert!(parse(&argv(&["-dup", "fast"])).is_err());
+        assert!(parse(&argv(&["-dup"])).is_err());
+    }
+
+    #[test]
+    fn extratic_and_port_are_parsed() {
+        let args = parse(&argv(&["-extratic", "-port", "5033"])).unwrap();
+        assert!(args.extratics);
+        assert_eq!(args.net_port, 5033);
+        assert!(parse(&argv(&["-port", "0"])).is_err());
+        assert!(parse(&argv(&["-port", "65536"])).is_err());
+        assert!(parse(&argv(&["-port", "abc"])).is_err());
+        assert!(parse(&argv(&["-port"])).is_err());
     }
 
     #[cfg(unix)]

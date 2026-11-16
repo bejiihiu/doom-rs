@@ -21,10 +21,18 @@ static INIT: Once = Once::new();
 /// Safe to call from multiple threads and multiple times; only the first
 /// call has any effect. See the module docs for the filter semantics.
 pub fn init_logging() {
+    init_logging_with_default("info");
+}
+
+/// Install the global subscriber exactly once, choosing the fallback
+/// filter level used when `RUST_LOG` is unset.
+pub fn init_logging_with_default(default_filter: &str) {
     INIT.call_once(|| {
-        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+        let filter =
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_filter));
         let _ = tracing_subscriber::fmt()
             .with_env_filter(filter)
+            .with_writer(std::io::stderr)
             .compact()
             .try_init();
     });

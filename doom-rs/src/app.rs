@@ -134,6 +134,13 @@ impl ScaleLut {
 }
 
 impl App {
+    /// Tell the surviving net-game nodes we are leaving (vanilla's
+    /// `D_QuitNetGame`) before the process exits. A no-op outside a
+    /// network game or before it started.
+    pub fn net_shutdown(&mut self) {
+        self.game.net_quit();
+    }
+
     pub fn new(init: AppInit) -> Self {
         let AppInit {
             game,
@@ -494,7 +501,12 @@ impl App {
                 self.consecutive_errors += 1;
                 let failures = self.consecutive_errors;
                 tracing::error!("game tick failed ({failures} in a row): {err}");
-                if self.consecutive_errors >= 10 {
+                // a net game is deterministic: a sync error will never cure
+                // itself by retrying - bail out immediately
+                if self.game.is_net_game() {
+                    eprintln!("doom-rs: error: the network game failed; last error: {err}");
+                    self.fatal_error = true;
+                } else if self.consecutive_errors >= 10 {
                     eprintln!(
                         "doom-rs: error: the game loop failed 10 times in a row; last error: {err}"
                     );
@@ -640,6 +652,7 @@ pub fn run(mut app: App, event_loop: EventLoop<()>) -> Result<bool, String> {
     event_loop
         .run_app(&mut app)
         .map_err(|err| format!("the event loop failed: {err}"))?;
+    app.net_shutdown();
     Ok(app.fatal_error)
 }
 
