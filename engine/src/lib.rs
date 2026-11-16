@@ -101,11 +101,9 @@
 //!
 //! Auxiliary developer tools live in the `tools/` directory of the
 //! workspace: `wad-inspector`, `asset-inspector` and `demo-analyzer`.
-//!
-//! The whole engine is safe Rust; no unsafe escape hatch in this crate.
 
 #![forbid(unsafe_code)]
-//!
+
 /// Deterministic pseudo-random number generation, ported from `m_random.c`.
 ///
 /// The engine owns generator instances ([`rng::DoomRng`]) instead of the
