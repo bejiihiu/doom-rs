@@ -740,8 +740,8 @@ mod tests {
         assert_eq!(proj.yslope(VIEW_HEIGHT - 1).to_raw(), bot);
 
         // sane and finite everywhere, including rows outside the view
-        for row in 0..256 {
-            assert!(proj.yslope[row] > Fixed::ZERO, "row {row}");
+        for (row, slope) in proj.yslope.iter().enumerate() {
+            assert!(*slope > Fixed::ZERO, "row {row}");
         }
     }
 
@@ -776,8 +776,8 @@ mod tests {
         let proj = PlaneProjection::build(&view);
         // 41 / 2 == 20, so row 20 lands exactly on the zero offset (+0.5)
         assert!(proj.yslope(20) > Fixed::ZERO);
-        for row in 0..256 {
-            assert!(proj.yslope[row] > Fixed::ZERO, "row {row}");
+        for (row, slope) in proj.yslope.iter().enumerate() {
+            assert!(*slope > Fixed::ZERO, "row {row}");
         }
     }
 

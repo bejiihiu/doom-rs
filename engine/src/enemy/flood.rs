@@ -96,11 +96,9 @@ pub fn noise_alert(
     // sector -> lines index, rebuilt per alert; alerts are rare
     let mut sector_lines: Vec<Vec<usize>> = vec![Vec::new(); map.sectors.len()];
     for (index, linedef) in map.linedefs.iter().enumerate() {
-        for side in 0..2 {
-            if let Some(side_index) = linedef.sidenum[side] {
-                let sidedef = &map.sidedefs[side_index];
-                sector_lines[sidedef.sector].push(index);
-            }
+        for side_index in linedef.sidenum.iter().flatten().copied() {
+            let sidedef = &map.sidedefs[side_index];
+            sector_lines[sidedef.sector].push(index);
         }
     }
 

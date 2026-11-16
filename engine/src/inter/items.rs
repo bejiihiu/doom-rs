@@ -580,8 +580,8 @@ pub fn touch_special_thing(ctx: &mut InterContext<'_>, special: ThinkerId, touch
         Sprite::SPR_BPAK => {
             if let Some(p) = ctx.players.get_mut(player_index) {
                 if !p.backpack {
-                    for i in 0..NUM_AMMO {
-                        p.maxammo[i] *= 2;
+                    for ammo in p.maxammo.iter_mut() {
+                        *ammo *= 2;
                     }
                     p.backpack = true;
                 }

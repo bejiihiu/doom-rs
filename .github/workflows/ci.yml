@@ -26,6 +26,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      # cpal (ALSA backend) needs the dev package present to build on Linux
+      - name: Install ALSA dev libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 

@@ -213,8 +213,8 @@ mod tests {
     fn zlight_rows_are_non_decreasing() {
         // further away -> darker colormap level (index grows), never wraps back
         let tables = LightTables::build(320);
-        for row in 0..LIGHTLEVELS {
-            for w in tables.zlight[row].windows(2) {
+        for (row, zlight_row) in tables.zlight.iter().enumerate() {
+            for w in zlight_row.windows(2) {
                 assert!(w[0] <= w[1], "zlight row {row} decreases");
             }
         }

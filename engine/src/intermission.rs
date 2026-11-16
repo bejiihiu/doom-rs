@@ -404,11 +404,14 @@ fn load_anims(
     let mut anims: Vec<Anim> = Vec::with_capacity(table.len());
     for (j, &(anim_type, period, nanims, (x, y), data1)) in table.iter().enumerate() {
         let mut frames = Vec::with_capacity(nanims);
-        for i in 0..nanims {
-            // MONDO HACK! `epsd 1, anim 8` shares the frames of anim 4
-            if episode == 1 && j == 8 {
-                frames.push(anims[4].frames[i].clone());
-            } else {
+        // MONDO HACK! `epsd 1, anim 8` shares the frames of anim 4
+        if episode == 1 && j == 8 {
+            let shared = anims[4].frames.get(..nanims).ok_or_else(|| {
+                EngineError::Resource("intermission anim 8 shares anim 4 frames".into())
+            })?;
+            frames.extend_from_slice(shared);
+        } else {
+            for i in 0..nanims {
                 let name = format!("WIA{episode}{j:02}{i:02}");
                 frames.push(load_patch(resources, &name)?);
             }

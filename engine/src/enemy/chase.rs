@@ -146,11 +146,7 @@ pub fn check_missile_range(ctx: &mut EnemyContext<'_>, actor: ThinkerId) -> bool
         dist = 160;
     }
 
-    if i32::from(ctx.rng.next()) < dist {
-        return false;
-    }
-
-    true
+    i32::from(ctx.rng.next()) >= dist
 }
 
 /// Vanilla `P_Move`. Moves the actor one speed-step in its current
