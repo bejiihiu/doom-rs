@@ -71,7 +71,9 @@ pub struct HudFont {
 }
 
 impl HudFont {
-    fn load(resources: &ResourceManager) -> EngineResult<Self> {
+    /// Decodes the HUD font (`STCFN033..STCFN095`) through the resource
+    /// manager. Shared by the HUD itself, the menu and the finale.
+    pub fn load(resources: &ResourceManager) -> EngineResult<Self> {
         let mut glyphs = Vec::with_capacity(HU_FONTSIZE);
         for i in 0..HU_FONTSIZE {
             // vanilla: sprintf(buffer, "STCFN%.3d", HU_FONTSTART + i)

@@ -87,17 +87,16 @@
 //!   singularity handling) and the cpal output backend.
 //! - `music` - music: the DMX MUS format parser, the GENMIDI OPL instrument
 //!   bank, MUS to MIDI conversion and OPL2 FM synthesis in-process.
-//! - `input` — keyboard, mouse and gamepad handling.
-//! - `game` — game state, the tic loop, demo playback and save/load.
+//! - `game` — game state, the tic loop, demos (`.lmp`), and save/load
+//!   (`p_saveg.c`): the `p_tick.c` ticker, the `p_user.c` player think
+//!   pass, the level bring-up from `p_setup.c`, and the whole frame
+//!   assembly from `d_main.c`/`r_main.c` — BSP traversal, planes, sky,
+//!   sprites, weapon overlay, status bar, HUD, automap and menu.
+//!   Everything is driven from headless tests; no windowing.
 //!
 //! Auxiliary developer tools live in the `tools/` directory of the
 //! workspace: `wad-inspector`, `asset-inspector` and `demo-analyzer`.
 //!
-//! ## Status
-//!
-//! Early scaffolding. Only the modules documented as present below compile
-//! today; the renderer and gameplay land incrementally.
-
 /// Deterministic pseudo-random number generation, ported from `m_random.c`.
 ///
 /// The engine owns generator instances ([`rng::DoomRng`]) instead of the
@@ -380,6 +379,18 @@ pub mod tables;
 /// layer drives it on its own clock; playback speed is the authentic
 /// DMX time division (140 ticks per second).
 pub mod music;
+
+/// The game loop, ported from `g_game.c`/`p_tick.c`/`p_user.c`/`p_setup.c`
+/// and the `d_main.c` application shell: game state (`GS_LEVEL` and
+/// friends), the ticker, the level bring-up, demos, save games and the
+/// one-pass frame renderer.
+///
+/// [`game::Game`] owns every subsystem and is the entry point for the
+/// platform shell: [`game::Game::new`] builds it from a WAD and the
+/// parsed command line, [`game::Game::tick_input`] runs one tic and one
+/// frame, [`game::Game::should_quit`] reports the player's quit request,
+/// and [`game::InputEvent`] carries OS-level input into the engine.
+pub mod game;
 
 /// Version of the engine crate. Re-exported for binaries and tools so they
 /// can report which engine they were built against.

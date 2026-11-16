@@ -423,7 +423,8 @@ pub fn a_pos_attack(ctx: &mut EnemyContext<'_>, actor: ThinkerId) {
         sfx: SfxId::sfx_pistol,
     });
 
-    let angle = angle + Angle::from_raw((ctx.rng.next() as u32 - ctx.rng.next() as u32) << 20);
+    let angle =
+        angle + Angle::from_raw(((ctx.rng.next() as i32 - ctx.rng.next() as i32) << 20) as u32);
     let damage = ((ctx.rng.random_below(5)) + 1) as i32 * 3;
     super::hitscan::line_attack(ctx, actor, angle, MISSILERANGE, aim.slope, damage);
 }
@@ -450,7 +451,8 @@ pub fn a_spos_attack(ctx: &mut EnemyContext<'_>, actor: ThinkerId) {
     let aim = super::hitscan::aim_line_attack(ctx, actor, bangle, MISSILERANGE);
 
     for _ in 0..3 {
-        let angle = bangle + Angle::from_raw((ctx.rng.next() as u32 - ctx.rng.next() as u32) << 20);
+        let angle = bangle
+            + Angle::from_raw(((ctx.rng.next() as i32 - ctx.rng.next() as i32) << 20) as u32);
         let damage = (ctx.rng.random_below(5) + 1) as i32 * 3;
         super::hitscan::line_attack(ctx, actor, angle, MISSILERANGE, aim.slope, damage);
     }
@@ -477,7 +479,8 @@ pub fn a_cpos_attack(ctx: &mut EnemyContext<'_>, actor: ThinkerId) {
     let bangle = a.angle;
     let aim = super::hitscan::aim_line_attack(ctx, actor, bangle, MISSILERANGE);
 
-    let angle = bangle + Angle::from_raw((ctx.rng.next() as u32 - ctx.rng.next() as u32) << 20);
+    let angle =
+        bangle + Angle::from_raw(((ctx.rng.next() as i32 - ctx.rng.next() as i32) << 20) as u32);
     let damage = (ctx.rng.random_below(5) + 1) as i32 * 3;
     super::hitscan::line_attack(ctx, actor, angle, MISSILERANGE, aim.slope, damage);
 }

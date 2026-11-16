@@ -72,6 +72,12 @@ pub struct VerticalDoor {
 /// at least one door was started, false otherwise (vanilla's `rtn`).
 pub fn ev_do_door(ctx: &mut SpecialContext, line: usize, kind: DoorKind) -> bool {
     let tag = ctx.map.linedefs[line].tag;
+    ev_do_door_tag(ctx, tag, kind)
+}
+
+/// Like [`ev_do_door`] but with a bare tag; for the triggers that are
+/// not tied to a linedef (the boss-death door actions).
+pub fn ev_do_door_tag(ctx: &mut SpecialContext, tag: i16, kind: DoorKind) -> bool {
     let mut rtn = false;
     let mut cursor = None;
 

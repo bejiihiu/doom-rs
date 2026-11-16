@@ -56,8 +56,12 @@ pub fn explode_missile(ctx: &mut MoveContext, id: ThinkerId) -> MovementReport {
         mo.momz = Fixed::ZERO;
     }
 
-    // switch to the death state
-    let _ = ctx.store.set_mobj_state(id, deathstate, ctx.leveltime);
+    // switch to the death state, dispatching the chain's actions ourselves:
+    // the original called P_SetMobjState inline, running A_Explode and the
+    // rest right here - and so do we, through the actions list the
+    // movement report carries back to the gameplay layer
+    let state_report = ctx.store.set_mobj_state(id, deathstate, ctx.leveltime);
+    report.extend_actions(state_report.actions);
 
     // vanilla always consumes this P_Random call, even if the state chain
     // removed the mobj; keep the RNG stream aligned
@@ -102,7 +106,8 @@ pub fn xy_movement(ctx: &mut MoveContext, id: ThinkerId) -> MovementReport {
                 mo.momy = Fixed::ZERO;
                 mo.momz = Fixed::ZERO;
             }
-            let _ = ctx.store.set_mobj_state(id, spawnstate, ctx.leveltime);
+            let state_report = ctx.store.set_mobj_state(id, spawnstate, ctx.leveltime);
+            report.extend_actions(state_report.actions);
         }
         return report;
     }
@@ -242,7 +247,8 @@ pub fn xy_movement(ctx: &mut MoveContext, id: ThinkerId) -> MovementReport {
     {
         if player.is_some() && (mo.state as usize).wrapping_sub(StateId::S_PLAY_RUN1 as usize) < 4 {
             // in a walking frame: back to the standing frame
-            let _ = ctx.store.set_mobj_state(id, StateId::S_PLAY, ctx.leveltime);
+            let state_report = ctx.store.set_mobj_state(id, StateId::S_PLAY, ctx.leveltime);
+            report.extend_actions(state_report.actions);
         }
         if let Some(mo) = ctx.store.mobj_mut(id) {
             mo.momx = Fixed::ZERO;

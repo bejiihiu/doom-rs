@@ -78,11 +78,12 @@ use crate::thinker::{Thinker, ThinkerId, ThinkerRegistry};
 
 pub use ceilings::{CEILSPEED, Ceiling, CeilingKind, ev_ceiling_crush_stop, ev_do_ceiling};
 pub use doors::{
-    DoorKind, VDOORSPEED, VDOORWAIT, VerticalDoor, ev_do_door, ev_do_locked_door, ev_vertical_door,
-    spawn_door_close_in_30, spawn_door_raise_in_5_mins,
+    DoorKind, VDOORSPEED, VDOORWAIT, VerticalDoor, ev_do_door, ev_do_door_tag, ev_do_locked_door,
+    ev_vertical_door, spawn_door_close_in_30, spawn_door_raise_in_5_mins,
 };
 pub use floor::{
     FLOORSPEED, FloorKind, FloorMover, StairKind, ev_build_stairs, ev_do_donut, ev_do_floor,
+    ev_do_floor_tag,
 };
 pub use lights::{
     FASTDARK, FireFlicker, GLOWSPEED, Glow, LightFlash, SLOWDARK, STROBEBRIGHT, StrobeFlash,
@@ -95,7 +96,9 @@ pub use lineactions::{
     use_special_line,
 };
 pub use plats::{PLATSPEED, PLATWAIT, Plat, PlatKind, PlatStatus, ev_do_plat, ev_stop_plat};
-pub use switches::{ButtonList, ButtonWhere, SwitchList, change_switch_texture, update_buttons};
+pub use switches::{
+    Button, ButtonList, ButtonWhere, SwitchList, change_switch_texture, update_buttons,
+};
 pub use teleport::ev_teleport;
 
 // the button accounting constants come straight from info, next to the

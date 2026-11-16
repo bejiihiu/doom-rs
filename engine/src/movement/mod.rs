@@ -193,6 +193,10 @@ impl MoveReport {
 pub struct MovementReport {
     /// Side effects for the gameplay layer, in production order.
     pub events: Vec<MoveEvent>,
+    /// State-chain actions (`A_Explode` and friends) produced by state
+    /// transitions taken inside the movement code. The gameplay layer
+    /// dispatches them through the usual `A_*` dispatcher.
+    pub actions: Vec<crate::info::StateAction>,
 }
 
 impl MovementReport {
@@ -202,6 +206,10 @@ impl MovementReport {
 
     pub(crate) fn extend(&mut self, events: Vec<MoveEvent>) {
         self.events.extend(events);
+    }
+
+    pub(crate) fn extend_actions(&mut self, actions: Vec<crate::info::StateAction>) {
+        self.actions.extend(actions);
     }
 }
 

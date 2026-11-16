@@ -157,6 +157,20 @@ impl ButtonList {
         self.slots.iter().filter(|slot| slot.is_some()).count()
     }
 
+    /// Replace every slot with the given buttons (save-game restore).
+    /// Truncates to the vanilla `MAXBUTTONS` capacity.
+    pub fn set_pressed(&mut self, buttons: Vec<Button>) {
+        self.slots = [None; MAXBUTTONS];
+        for (slot, button) in self.slots.iter_mut().zip(buttons) {
+            *slot = Some(button);
+        }
+    }
+
+    /// Drop every pressed button (level start / save-game restore).
+    pub fn clear(&mut self) {
+        self.slots = [None; MAXBUTTONS];
+    }
+
     /// True when no buttons are pressed.
     pub fn is_empty(&self) -> bool {
         self.len() == 0

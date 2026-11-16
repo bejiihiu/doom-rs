@@ -355,6 +355,66 @@ pub enum FinaleSound {
     Rlaunc,
     /// `sfx_plasma`
     Plasma,
+    /// `sfx_posit1` - cast call, zombieman/shotgun guy entrance
+    Posit1,
+    /// `sfx_posit2` - cast call, heavy weapon dude entrance
+    Posit2,
+    /// `sfx_vilsit` - cast call, arch-vile entrance
+    Vilsit,
+    /// `sfx_skesit` - cast call, revenant entrance
+    Skesit,
+    /// `sfx_mansit` - cast call, mancubus entrance
+    Mansit,
+    /// `sfx_bgsit1` - cast call, imp entrance
+    Bgsit1,
+    /// `sfx_sgtsit` - cast call, demon entrance
+    Sgtsit,
+    /// `sfx_cacsit` - cast call, cacodemon entrance
+    Cacsit,
+    /// `sfx_brssit` - cast call, baron entrance
+    Brssit,
+    /// `sfx_kntsit` - cast call, hell knight entrance
+    Kntsit,
+    /// `sfx_spisit` - cast call, spider mastermind entrance
+    Spisit,
+    /// `sfx_bspsit` - cast call, arachnotron entrance
+    Bspsit,
+    /// `sfx_cybsit` - cast call, cyberdemon entrance
+    Cybsit,
+    /// `sfx_pesit` - cast call, pain elemental entrance
+    Pesit,
+    /// `sfx_podth1` - cast call, zombieman death
+    Podth1,
+    /// `sfx_podth2` - cast call, shotgun guy death
+    Podth2,
+    /// `sfx_vildth` - cast call, arch-vile death
+    Vildth,
+    /// `sfx_skedth` - cast call, revenant death
+    Skedth,
+    /// `sfx_mandth` - cast call, mancubus death
+    Mandth,
+    /// `sfx_bgdth1` - cast call, imp death
+    Bgdth1,
+    /// `sfx_sgtdth` - cast call, demon death
+    Sgtdth,
+    /// `sfx_cacdth` - cast call, cacodemon death
+    Cacdth,
+    /// `sfx_brsdth` - cast call, baron death
+    Brsdth,
+    /// `sfx_kntdth` - cast call, hell knight death
+    Kntdth,
+    /// `sfx_firxpl` - cast call, lost soul death
+    Firxpl,
+    /// `sfx_spidth` - cast call, spider mastermind death
+    Spidth,
+    /// `sfx_bspdth` - cast call, arachnotron death
+    Bspdth,
+    /// `sfx_cybdth` - cast call, cyberdemon death
+    Cybdth,
+    /// `sfx_pedth` - cast call, pain elemental death
+    Pedth,
+    /// `sfx_pldeth` - cast call, our hero death
+    Pldeth,
 }
 
 /// Music changes the finale triggers (`S_ChangeMusic(..., true)`).

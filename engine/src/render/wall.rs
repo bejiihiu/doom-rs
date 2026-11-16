@@ -290,10 +290,10 @@ pub struct WallView<'a> {
 /// framebuffer. Construct with [`WallFrame::new`], call [`WallFrame::clear`]
 /// once per frame, then drive [`WallFrame::store_wall_range`] from the
 /// BSP traversal.
-pub struct WallFrame<'a> {
-    view: WallView<'a>,
+pub struct WallFrame<'v, 'fb> {
+    view: WallView<'v>,
     planes: PlaneSet,
-    fb: &'a mut IndexedFramebuffer,
+    fb: &'fb mut IndexedFramebuffer,
     ceiling_clip: [i16; SCREEN_WIDTH],
     floor_clip: [i16; SCREEN_WIDTH],
     screen_height_array: Vec<i16>,
@@ -422,9 +422,9 @@ fn light_row(light_level: i16, horizontal: bool, vertical: bool, extralight: i32
     row.clamp(0, LIGHTLEVELS as i32 - 1) as usize
 }
 
-impl<'a> WallFrame<'a> {
+impl<'v, 'fb> WallFrame<'v, 'fb> {
     /// A wall frame for `view` rasterizing into `fb`.
-    pub fn new(view: WallView<'a>, fb: &'a mut IndexedFramebuffer) -> Self {
+    pub fn new(view: WallView<'v>, fb: &'fb mut IndexedFramebuffer) -> Self {
         let screen_height_array = vec![view.view_height as i16; view.view_width as usize];
         let view_height = view.view_height;
         Self {
@@ -468,7 +468,7 @@ impl<'a> WallFrame<'a> {
     }
 
     /// The framebuffer handed back.
-    pub fn into_framebuffer(self) -> &'a mut IndexedFramebuffer {
+    pub fn into_framebuffer(self) -> &'fb mut IndexedFramebuffer {
         self.fb
     }
 
@@ -483,6 +483,19 @@ impl<'a> WallFrame<'a> {
     // added for the sprite pass; nothing else mutates the frame through it
     pub fn framebuffer_mut(&mut self) -> &mut IndexedFramebuffer {
         self.fb
+    }
+
+    /// Disjoint borrows of the framebuffer and the visplane pool, for
+    /// the flat span rasterizer. Lets the plane pass borrow both from
+    /// one frame without a manual split at every call site.
+    pub fn fb_and_planes(&mut self) -> (&mut IndexedFramebuffer, &mut PlaneSet) {
+        (&mut self.fb, &mut self.planes)
+    }
+
+    /// Disjoint borrows of the framebuffer (mutable) and the visplane
+    /// pool (shared), for the sky column pass.
+    pub fn fb_and_planes_shared(&mut self) -> (&mut IndexedFramebuffer, &PlaneSet) {
+        (&mut self.fb, &self.planes)
     }
 
     /// The visplane pool (for the span renderer and tests).
@@ -636,7 +649,7 @@ impl<'a> WallFrame<'a> {
     }
 }
 
-impl<'a> WallFrame<'a> {
+impl<'v, 'fb> WallFrame<'v, 'fb> {
     /// `R_StoreWallRange`: draw one visible seg fragment `[start, stop]`
     /// (inclusive, screen columns). `rw_angle1` is the seg's
     /// view-absolute `v1` angle, as returned by [`crate::bsp::add_line`];
@@ -1750,7 +1763,11 @@ mod tests {
             }
         }
 
-        fn frame<'a>(&'a self, fb: &'a mut IndexedFramebuffer, view_angle: Angle) -> WallFrame<'a> {
+        fn frame<'a>(
+            &'a self,
+            fb: &'a mut IndexedFramebuffer,
+            view_angle: Angle,
+        ) -> WallFrame<'a, 'a> {
             WallFrame::new(
                 test_view(
                     &self.tables,
@@ -1769,7 +1786,7 @@ mod tests {
             fb: &'a mut IndexedFramebuffer,
             view_angle: Angle,
             view_z: Fixed,
-        ) -> WallFrame<'a> {
+        ) -> WallFrame<'a, 'a> {
             WallFrame::new(
                 test_view_z(
                     &self.tables,
@@ -1791,7 +1808,7 @@ mod tests {
     /// classification outcome.
     fn rasterize_seg(
         kit: &TestKit,
-        frame: &mut WallFrame<'_>,
+        frame: &mut WallFrame<'_, '_>,
         map: &Map,
         seg_index: usize,
         floor_plane: Option<usize>,

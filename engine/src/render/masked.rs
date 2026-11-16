@@ -89,6 +89,17 @@ impl MaskedRenderer {
         &self.vissprites
     }
 
+    /// The translation tables for the sprite pass (shared with the
+    /// weapon overlay drawer, which takes them by reference).
+    pub fn translations(&self) -> &TranslationTables {
+        &self.translations
+    }
+
+    /// The fuzz state (shared with the weapon overlay drawer).
+    pub fn fuzz_mut(&mut self) -> &mut super::column::FuzzState {
+        &mut self.fuzz
+    }
+
     /// How many sprites were dropped this frame for pool exhaustion.
     pub fn overflowed(&self) -> u32 {
         self.overflowed
@@ -132,7 +143,7 @@ impl MaskedRenderer {
     /// `|lump| resources.decode_cached::<Patch>(lump, decode_patch)`.
     pub fn draw_masked(
         &mut self,
-        frame: &mut WallFrame<'_>,
+        frame: &mut WallFrame<'_, '_>,
         view: &WallView<'_>,
         map: &Map,
         patches: &mut dyn FnMut(usize) -> crate::errors::EngineResult<Arc<Patch>>,
@@ -192,7 +203,7 @@ impl MaskedRenderer {
 /// front, keeping the innermost silhouette), then draw it.
 #[allow(clippy::too_many_arguments)]
 fn draw_sprite(
-    frame: &mut WallFrame<'_>,
+    frame: &mut WallFrame<'_, '_>,
     view: &WallView<'_>,
     map: &Map,
     spr: &ProjectedSprite,
@@ -612,7 +623,7 @@ mod tests {
     /// pass does for a real subsector
     fn rasterize_seg(
         kit: &Kit,
-        frame: &mut WallFrame<'_>,
+        frame: &mut WallFrame<'_, '_>,
         map: &Map,
         seg_index: usize,
     ) -> AddLineOutcome {

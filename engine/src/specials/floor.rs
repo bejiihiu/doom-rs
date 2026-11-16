@@ -157,6 +157,23 @@ pub(crate) fn run_floor_mover(reg: &mut ThinkerRegistry, id: ThinkerId, ctx: &mu
 /// Returns true when at least one mover was started.
 pub fn ev_do_floor(ctx: &mut SpecialContext, line: usize, kind: FloorKind) -> bool {
     let tag = ctx.map.linedefs[line].tag;
+    ev_do_floor_impl(ctx, Some(line), tag, kind)
+}
+
+/// Like [`ev_do_floor`] but with a bare tag; for the triggers that are
+/// not tied to a linedef (the boss-death floor actions).
+pub fn ev_do_floor_tag(ctx: &mut SpecialContext, tag: i16, kind: FloorKind) -> bool {
+    ev_do_floor_impl(ctx, None, tag, kind)
+}
+
+/// Shared body; `line` is `Some` when called from a linedef (the
+/// `RaiseFloor24AndChange` kind needs the line's front sector).
+fn ev_do_floor_impl(
+    ctx: &mut SpecialContext,
+    line: Option<usize>,
+    tag: i16,
+    kind: FloorKind,
+) -> bool {
     let mut rtn = false;
     let mut cursor = None;
 
@@ -231,7 +248,10 @@ pub fn ev_do_floor(ctx: &mut SpecialContext, line: usize, kind: FloorKind) -> bo
                 floor.direction = 1;
                 floor.floor_dest_height =
                     ctx.map.sectors[secnum].floor_height + Fixed::from_raw(24 * FRACUNIT);
-                match ctx.map.linedefs[line].frontsector {
+                match line
+                    .and_then(|line| ctx.map.linedefs.get(line))
+                    .and_then(|line| line.frontsector)
+                {
                     Some(front) => {
                         let front_pic = ctx.map.sectors[front].floor_pic;
                         let front_special = ctx.map.sectors[front].special;
@@ -240,7 +260,8 @@ pub fn ev_do_floor(ctx: &mut SpecialContext, line: usize, kind: FloorKind) -> bo
                     }
                     None => {
                         tracing::warn!(
-                            "raiseFloor24AndChange: line {line} has no front sector; texture/special copy skipped"
+                            "raiseFloor24AndChange: triggered by a bare tag (boss death); \
+                             texture/special copy skipped"
                         );
                     }
                 }
