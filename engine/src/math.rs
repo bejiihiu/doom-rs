@@ -135,8 +135,10 @@ pub fn point_on_divline_side(x: Fixed, y: Fixed, line: &Divline) -> i32 {
         return i32::from((line.dy.to_raw() ^ dx.to_raw()) & i32::MIN != 0);
     }
 
-    let left = Fixed::from_raw(line.dy.to_raw() >> FRACBITS) * dx;
-    let right = dy * Fixed::from_raw(line.dx.to_raw() >> FRACBITS);
+    // the original P_PointOnDivlineSide keeps 8 extra fraction bits here
+    // (dy>>8 / dx>>8) instead of full FRACBITS precision; keep that exactly
+    let left = Fixed::from_raw(line.dy.to_raw() >> 8) * Fixed::from_raw(dx.to_raw() >> 8);
+    let right = Fixed::from_raw(dy.to_raw() >> 8) * Fixed::from_raw(line.dx.to_raw() >> 8);
 
     if right < left { 0 } else { 1 }
 }
