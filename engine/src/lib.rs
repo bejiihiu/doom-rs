@@ -31,8 +31,8 @@
 //!   and sprites.
 //! - `map` — map lump loading and validation.
 //! - `bsp` — BSP tree traversal and wall clipping.
-//! - `render` — the software renderer: framebuffer, columns, spans,
-//!   lighting, wall/plane rasterizers.
+//! - `render` - the software renderer: framebuffer, columns, spans,
+//!   lighting, wall/plane rasterizers, sprites, masked passes and sky.
 //! - `audio` — sound effects and music playback.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
@@ -108,7 +108,9 @@ pub mod gfx;
 /// low-level column/span drawers (`R_DrawColumn`/`R_DrawSpan` families),
 /// the `zlight`/`scalelight` tables, the gamma remap tables, the wall
 /// rasterizer (`R_StoreWallRange` and friends) and the visplane
-/// bookkeeping the wall rasterizer marks.
+/// bookkeeping the wall rasterizer marks. The sprite pass
+/// (`R_ProjectSprite`/`R_DrawMasked`) and the sky column pass
+/// (`R_DrawPlanes`' sky branch) are here too.
 ///
 /// Works on raw palette indices; the palette is applied at output time
 /// only ([`render::IndexedFramebuffer::to_rgba_bytes`]).

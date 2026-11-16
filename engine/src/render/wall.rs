@@ -478,6 +478,13 @@ impl<'a> WallFrame<'a> {
         self.fb
     }
 
+    /// `&mut` access to the framebuffer, for the passes that draw on top
+    /// of the wall/flat output (the sprite/masked pass and the sky).
+    // added for the sprite pass; nothing else mutates the frame through it
+    pub fn framebuffer_mut(&mut self) -> &mut IndexedFramebuffer {
+        self.fb
+    }
+
     /// The visplane pool (for the span renderer and tests).
     pub fn planes(&self) -> &PlaneSet {
         &self.planes
@@ -556,6 +563,13 @@ impl<'a> WallFrame<'a> {
     /// not drawn yet at `x`, if any.
     pub fn seg_masked_col(&self, seg: &DrawSeg, x: i32) -> Option<i16> {
         self.clip_ref_value(seg.maskedtexturecol, x)
+    }
+
+    /// Whether this seg carries masked mid-texture columns (regardless of
+    /// whether the columns were already consumed) - the analogue of
+    /// `ds->maskedtexturecol != NULL`.
+    pub fn seg_has_masked_col(&self, seg: &DrawSeg) -> bool {
+        !matches!(seg.maskedtexturecol, ClipRef::None)
     }
 
     // ------------------------------------------------------------------
