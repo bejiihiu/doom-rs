@@ -370,10 +370,38 @@ pub mod movement;
 /// backend reaches the same mixer through [`audio::SharedMixer`].
 pub mod audio;
 
+/// Startup configuration: the ported `doom.cfg` system.
+///
+/// [`config::DoomConfig`] stores settings as raw strings on disk (so
+/// unknown keys survive a round trip), plus the plain `Config`
+/// (engine-level) and validation types.
 pub mod config;
+
+/// Engine error types and the [`errors::EngineResult`] alias every
+/// module returns.
+///
+/// [`errors::EngineError`] wraps the per-subsystem error enums
+/// (`WadError`, `MapError`, `GfxError`, ...) so call sites can match one
+/// type regardless of the subsystem that failed.
 pub mod errors;
+
+/// 16.16 fixed-point arithmetic, ported from `m_fixed.c`.
+///
+/// [`fixed::Fixed`] is the engine's integer math primitive; all world
+/// coordinates, heights, speeds and angles go through it.
 pub mod fixed;
+
+/// Geometry and bounding-box helpers, ported from `p_map.c`/`m_bbox.c`.
+///
+/// Line side tests, box clipping and the distance/angle helpers every
+/// other subsystem builds on.
 pub mod math;
+
+/// Fine angle tables and BAM (binary angle measurement), ported from
+/// `tables.c`/`tables.h`.
+///
+/// The sine/cosine/tangent LUTs are byte-for-byte the original's;
+/// [`tables::Angle`] is the 32-bit wrapper used for all headings.
 pub mod tables;
 
 /// Music: the DMX MUS format and OPL2 FM synthesis, in-process.
