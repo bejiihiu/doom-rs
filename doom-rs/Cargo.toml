@@ -8,4 +8,9 @@ repository.workspace = true
 
 [dependencies]
 clap.workspace = true
+cpal.workspace = true
 doom-engine = { path = "../engine" }
+gilrs.workspace = true
+softbuffer.workspace = true
+tracing.workspace = true
+winit.workspace = true

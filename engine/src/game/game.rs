@@ -737,6 +737,20 @@ impl Game {
         self.automap.is_active()
     }
 
+    /// Shared handle to the SFX mixer, for the platform's output backend.
+    /// The game mixes sound into this mixer every frame; handing the same
+    /// handle to a device stream plays it as it would a console port.
+    pub fn sound_mixer(&self) -> crate::audio::SharedMixer {
+        self.sound.mixer()
+    }
+
+    /// The music engine, for the platform to drain at its own clock.
+    /// The game decides *which* track plays; the platform decides *when*
+    /// the samples reach the output device (`pull_samples`).
+    pub fn music_engine(&mut self) -> &mut crate::music::MusicEngine {
+        &mut self.music
+    }
+
     /// Direct access to the player's current place in the world - for
     /// tooling and tests (agent 39's determinism harness).
     pub fn player_position(&self) -> Option<(Fixed, Fixed, Angle)> {

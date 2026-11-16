@@ -20,3 +20,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive"] }
 cpal = "0.18"
+winit = "0.30"
+softbuffer = "0.4"
+gilrs = "0.11"
