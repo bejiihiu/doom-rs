@@ -45,13 +45,15 @@
 //!
 //! ```no_run
 //! use doom_engine::automap::{AutomapState, AutomapView, PlayerMarker};
-//! # let map: &doom_engine::map::Map = unimplemented!();
+//! # fn example(map: &doom_engine::map::Map) {
 //! # let me = PlayerMarker { x: doom_engine::fixed::Fixed::ZERO, y: doom_engine::fixed::Fixed::ZERO, angle: Default::default(), invisible: false, is_local: true };
 //! # let view = AutomapView { me, players: &[], netgame: false, deathmatch: false, singledemo: false, all_map: false, things: &[] };
 //! let mut automap = AutomapState::new();
 //! automap.begin_level(map);
 //! automap.start(map, me);
 //! assert!(automap.is_active());
+//! # let _ = view;
+//! # }
 //! ```
 
 mod draw;
