@@ -2,10 +2,10 @@
 //!
 //! Two layers live here:
 //!
-//! - [`Config`] — the small set of paths the engine needs in order to
+//! - [`Config`](crate::config::Config) - the small set of paths the engine needs in order to
 //!   bootstrap itself (IWAD/PWAD/savegames). It was here from the start;
 //!   its API is unchanged.
-//! - [`DoomConfig`] — a port of `M_LoadDefaults`/`M_SaveDefaults` from
+//! - [`DoomConfig`](crate::config::DoomConfig) - a port of `M_LoadDefaults`/`M_SaveDefaults` from
 //!   `m_misc.c`: the classic `doom.cfg` key/value file with typed accessors
 //!   and defaults, just without the original's global variables and raw
 //!   pointer casts.

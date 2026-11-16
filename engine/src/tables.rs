@@ -5,7 +5,7 @@
 //! directly from the original engine constants. Do not hand-edit them; the
 //! exact values matter for determinism.
 //!
-//! [`Angle`] wraps a `u32` BAM: a full circle is 2^32, so 2 * [`Angle::ANG180`]
+//! [`Angle`](crate::tables::Angle) wraps a `u32` BAM: a full circle is 2^32, so 2 * [`Angle::ANG180`](crate::tables::Angle::ANG180)
 //! wraps back to zero and angle math can use plain wrapping `u32` arithmetic.
 
 use core::fmt;
