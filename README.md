@@ -14,11 +14,12 @@ fixed-point math, the same gametic timing, so that demos and net games
 behave the way the original does. The engine is a library; the windowed
 binary is a thin shell on top of it.
 
-**Status: work in progress.** The engine is feature complete and the test
-suite is green; on Windows, the shareware `doom1.wad` boots through the
-title and menu into E1M1, with HUD and sound. Broader verification
-(full playthroughs, other episodes and IWAD families, net play,
-save/load, other platforms) is in progress.
+**Status.** The engine is feature complete and the test suite is
+green; on Windows, the shareware `doom1.wad` boots through the title and
+menu into E1M1, with HUD and sound. Broader verification (full
+playthroughs, other episodes and IWAD families, net play, save/load,
+other platforms) is in progress - see
+[docs/compatibility.md](docs/compatibility.md) for the exact list.
 
 ## Features
 
@@ -47,14 +48,30 @@ save/load, other platforms) is in progress.
 
 ## Quick start
 
-Clone the repository and build a release binary. Download the shareware
-`DOOM1.WAD` from id Software's freely distributable copy (or point
-`-iwad` at your own `doom2.wad` / `doom.wad` / `doomu.wad`). Run the
-binary with `-iwad` pointing at the file.
+Clone the repository and build a release binary:
+
+```
+git clone https://github.com/bejiihiu/doom-rs.git
+cd doom-rs
+cargo build --release
+```
+
+The binary lands at `target/release/doom-rs` (`target\release\doom-rs.exe`
+on Windows). Download the shareware `DOOM1.WAD` from id Software's freely
+distributable copy (or use your own legally owned `doom2.wad` / `doom.wad` /
+`doomu.wad`) and point `-iwad` at it:
+
+```
+# Linux / macOS
+target/release/doom-rs -iwad /path/to/DOOM1.WAD
+
+# Windows
+target\release\doom-rs.exe -iwad C:\path\to\DOOM1.WAD
+```
 
 Your `doom.cfg` is read from and written to the current directory by
 default; save games and demos land there too. **Do not commit the WAD,
-your config, or your save games** — the repository's ignore rules exist
+your config, or your save games** - the repository's ignore rules exist
 so they stay yours.
 
 See [docs/building.md](docs/building.md) for toolchain details and
@@ -89,17 +106,11 @@ broadcast discovery does not exist in the 1.10 sources). See
 
 ## Install
 
-There is no published package or release yet; install means building
-from source:
-
-1. Clone the repository.
-2. Build the release binary.
-3. Put the binary somewhere on your `PATH` (optional; it runs from
-   wherever it is).
-
-Prebuilt binaries will be attached to GitHub releases once the first
-milestone ships; until then, building from source is the only path.
-`cargo install` is not applicable — the crates are not published.
+Tagged releases on GitHub ship prebuilt binaries for Linux, Windows and
+macOS (see the Releases page). Install means extracting the archive and
+running the `doom-rs` binary with `-iwad` pointing at your IWAD.
+Building from source works too - see [Quick start](#quick-start).
+`cargo install` is not applicable - the crates are not published.
 
 ## Documentation
 
