@@ -1191,7 +1191,9 @@ mod tests {
             );
             let mut found = false;
             for (_id, t) in store.thinkers() {
-                let crate::thinker::Thinker::Mobj(m) = t;
+                let crate::thinker::Thinker::Mobj(m) = t else {
+                    continue;
+                };
                 if m.mobj_type == drop_type {
                     assert_ne!(m.flags & MF_DROPPED, 0);
                     found = true;

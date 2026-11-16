@@ -1983,10 +1983,13 @@ mod tests {
             .thinkers()
             .filter(|(_id, t)| match t {
                 crate::thinker::Thinker::Mobj(m) => m.mobj_type == MobjType::MT_ROCKET,
+                _ => false,
             })
             .collect();
         assert_eq!(rockets.len(), 1);
-        let crate::thinker::Thinker::Mobj(rocket) = rockets[0].1;
+        let crate::thinker::Thinker::Mobj(rocket) = rockets[0].1 else {
+            panic!("the rocket thinker was not a mobj");
+        };
         assert_eq!(rocket.target, Some(avatar));
         // no target anywhere: the shot flies straight (zero elevation slope)
         assert_eq!(rocket.momz, Fixed::ZERO);

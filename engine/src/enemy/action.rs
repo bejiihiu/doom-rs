@@ -1033,7 +1033,10 @@ fn pain_shoot_skull(ctx: &mut EnemyContext<'_>, actor: ThinkerId, angle: Angle) 
     // count total number of skulls currently on the level
     let mut count = 0;
     for (_, thinker) in ctx.store.thinkers() {
-        let Thinker::Mobj(m) = thinker;
+        // doors and light thinkers are not skulls
+        let Thinker::Mobj(m) = thinker else {
+            continue;
+        };
         if m.mobj_type == MobjType::MT_SKULL {
             count += 1;
         }
@@ -1616,7 +1619,9 @@ pub fn a_boss_death(ctx: &mut EnemyContext<'_>, mo: ThinkerId) {
 
     // scan the remaining thinkers to see if all bosses are dead
     for (id, thinker) in ctx.store.thinkers() {
-        let Thinker::Mobj(mo2) = thinker;
+        let Thinker::Mobj(mo2) = thinker else {
+            continue;
+        };
         if id == mo {
             continue;
         }
@@ -1681,7 +1686,9 @@ pub fn a_keen_die(ctx: &mut EnemyContext<'_>, mo: ThinkerId) {
     // scan the remaining thinkers
     // to see if all Keens are dead
     for (id, thinker) in ctx.store.thinkers() {
-        let Thinker::Mobj(mo2) = thinker;
+        let Thinker::Mobj(mo2) = thinker else {
+            continue;
+        };
         if id == mo {
             continue;
         }
@@ -1706,7 +1713,9 @@ pub fn a_brain_awake(ctx: &mut EnemyContext<'_>, mo: ThinkerId) {
     // find all the target spots
     let mut targets = Vec::new();
     for (id, thinker) in ctx.store.thinkers() {
-        let Thinker::Mobj(m) = thinker;
+        let Thinker::Mobj(m) = thinker else {
+            continue;
+        };
         if m.mobj_type == MobjType::MT_BOSSTARGET {
             targets.push(id);
         }
@@ -2516,6 +2525,7 @@ mod tests {
 
         let fireball = store.thinkers().any(|(_id, t)| match t {
             Thinker::Mobj(m) => m.mobj_type == MobjType::MT_TROOPSHOT,
+            _ => false,
         });
         assert!(fireball, "expected a MT_TROOPSHOT to exist");
     }
@@ -2678,6 +2688,7 @@ mod tests {
             .thinkers()
             .filter(|(_id, t)| match t {
                 Thinker::Mobj(m) => m.mobj_type == MobjType::MT_SKULL,
+                _ => false,
             })
             .count();
         assert_eq!(skulls, 3);
@@ -2947,6 +2958,7 @@ mod tests {
             .thinkers()
             .filter(|(_id, t)| match t {
                 Thinker::Mobj(m) => m.mobj_type == MobjType::MT_EXTRABFG,
+                _ => false,
             })
             .count();
         assert!(extra_bfgs >= 1, "expected at least one MT_EXTRABFG spawned");
@@ -2991,6 +3003,7 @@ mod tests {
         // teleport fog appeared at the spot
         let fog = store.thinkers().any(|(_id, t)| match t {
             Thinker::Mobj(m) => m.mobj_type == MobjType::MT_SPAWNFIRE,
+            _ => false,
         });
         assert!(fog, "expected spawn fog");
 
@@ -3013,6 +3026,7 @@ mod tests {
                             | MobjType::MT_BRUISER
                     )
             }
+            _ => false,
         });
         assert!(spawned_monster, "expected a freshly spawned monster");
 

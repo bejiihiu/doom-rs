@@ -588,19 +588,19 @@ impl MobjStore {
         self.registry.iter()
     }
 
-    /// Borrows a mobj by handle.
+    /// Borrows a mobj by handle. Non-mobj thinkers come back as `None`.
     pub fn mobj(&self, id: ThinkerId) -> Option<&Mobj> {
         match self.registry.get(id) {
             Some(Thinker::Mobj(mobj)) => Some(mobj),
-            None => None,
+            _ => None,
         }
     }
 
-    /// Mutably borrows a mobj by handle.
+    /// Mutably borrows a mobj by handle. Non-mobj thinkers come back as `None`.
     pub fn mobj_mut(&mut self, id: ThinkerId) -> Option<&mut Mobj> {
         match self.registry.get_mut(id) {
             Some(Thinker::Mobj(mobj)) => Some(mobj),
-            None => None,
+            _ => None,
         }
     }
 
@@ -755,6 +755,8 @@ impl MobjStore {
                 }
                 queued
             }
+            // doors and light thinkers are not respawnable map items
+            Some(_) => false,
             None => {
                 tracing::warn!("P_RemoveMobj: stale mobj handle {id:?} ignored");
                 false
@@ -812,6 +814,14 @@ impl MobjStore {
                     mobj.tics = tics;
                     mobj.sprite = sprite;
                     mobj.frame = frame;
+                }
+                // doors and light thinkers are not mobjs; the caller asked
+                // about a thing handle and gets a "gone" report instead
+                Some(_) => {
+                    return SetMobjStateReport {
+                        present: false,
+                        actions,
+                    };
                 }
                 // Vanilla would follow a dangling pointer into freed
                 // memory; we report the mobj as gone instead.
@@ -1054,6 +1064,12 @@ impl MobjStore {
     /// registry (see [`ThinkerRegistry::run`]).
     pub fn run_thinkers(&mut self, f: impl FnMut(&mut ThinkerRegistry, ThinkerId)) {
         self.registry.run(f);
+    }
+
+    /// Mutable access to the registry, for the specials pass: it appends
+    /// gameplay-queued thinkers at the tail before walking the list.
+    pub(crate) fn registry_mut(&mut self) -> &mut ThinkerRegistry {
+        &mut self.registry
     }
 
     fn ensure_side_tables(&mut self, map: &Map) {

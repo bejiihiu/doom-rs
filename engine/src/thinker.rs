@@ -46,6 +46,7 @@
 use std::fmt;
 
 use crate::mobj::Mobj;
+use crate::specials::{FireFlicker, Glow, LightFlash, StrobeFlash, VerticalDoor};
 
 /// A handle into the registry, like a `slotmap` key: a slot index plus
 /// the generation that slot had when the handle was handed out.
@@ -83,14 +84,28 @@ impl fmt::Debug for ThinkerId {
 ///
 /// Every variant is a plain data payload; behavior lives in the gameplay
 /// layer, not on the thinker itself (the registry is just the list).
-/// New thinker kinds (plats, doors, light flashing, ...) are added here as
-/// the corresponding `p_spec.c` jobs get ported, so the list stays a
-/// single interleaved sequence like vanilla.
+/// New thinker kinds are added here as the corresponding `p_*.c` jobs get
+/// ported, so the list stays a single interleaved sequence like vanilla.
 #[derive(Debug)]
 pub enum Thinker {
     /// Vanilla `P_MobjThinker`: the per-tic behavior of every gameplay
     /// object (monsters, projectiles, items, the player's avatar).
     Mobj(Mobj),
+    /// Vanilla `T_VerticalDoor` (`p_doors.c`): doors that slide up and
+    /// down (raised, opened, closed, or close-after-30-seconds ones).
+    Door(VerticalDoor),
+    /// Vanilla `T_LightFlash` (`p_lights.c`): the "broken light" flicker
+    /// used by sector special 1.
+    LightFlash(LightFlash),
+    /// Vanilla `T_StrobeFlash` (`p_lights.c`): periodic strobe lights
+    /// (sector specials 2, 3, 4, 12, 13 and the tagged-line trigger).
+    StrobeFlash(StrobeFlash),
+    /// Vanilla `T_FireFlicker` (`p_lights.c`): the torch-style fire
+    /// flicker (sector special 17).
+    FireFlicker(FireFlicker),
+    /// Vanilla `T_Glow` (`p_lights.c`): the slow breathing glow
+    /// (sector special 8).
+    Glow(Glow),
 }
 
 struct Slot {

@@ -64,9 +64,14 @@
 //! - `info` - the game data tables the gameplay layer drives: `states[]`,
 //!   `mobjinfo[]`, `sprnames`, `S_sfx[]`/`S_music[]` and the switch
 //!   on/off texture pairs, ported from `info.c`/`sounds.c`/`p_switch.c`.
-//! - `movement` - movement and collision: `P_CheckPosition`/`P_TryMove`,
+//! - `movement` — movement and collision: `P_CheckPosition`/`P_TryMove`,
 //!   the slide move, `P_PathTraverse` and the momentum ticks from
 //!   `p_mobj.c`, ported from `p_map.c`/`p_maputl.c`/`p_mobj.c`.
+//! - `specials` - line and sector specials: doors (`p_doors.c`), the
+//!   wall-switch machinery (`p_switch.c`), light-flash thinkers
+//!   (`p_lights.c`) and teleports (`p_telept.c`), sharing the moving-sector
+//!   machinery from `p_floor.c`/`p_map.c`. Side effects come out as
+//!   plain-data events for the game loop to apply.
 //! - `weapons` — the player weapons: the overlay (psprite) state
 //!   machines, the `A_*` weapon callbacks, the `weaponinfo[]` table and
 //!   the muzzle flash, ported from `p_pspr.c` / `d_items.c` (plus
@@ -314,6 +319,19 @@ pub mod map;
 /// [`weapons::draw_player_psprites`] is the view half — `R_DrawPSprite`
 /// for the overlay sprites.
 pub mod weapons;
+
+/// Line and sector specials: doors (the `p_doors.c` port), the wall
+/// switch machinery (the `p_switch.c` port), light-flash thinkers
+/// (`p_lights.c`) and teleports (`p_telept.c`). The moving-sector
+/// machinery shared with floors/ceilings (the `T_MovePlane`/
+/// `P_ChangeSector` half of `p_floor.c`/`p_map.c`) lives in the module
+/// too.
+///
+/// Thinkers are [`thinker::Thinker`] variants in the shared registry,
+/// dispatched by [`specials::run_thinkers`]; the `EV_*` entry points are
+/// called by the line-special interpreter (a later port). Side effects
+/// come out as plain-data [`specials::SpecialEvent`]s.
+pub mod specials;
 
 /// Movement and collision: `p_map.c`, `p_maputl.c` and the movement half of
 /// `p_mobj.c`.

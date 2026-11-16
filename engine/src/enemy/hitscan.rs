@@ -736,6 +736,7 @@ mod tests {
             .thinkers()
             .filter(|(_id, t)| match t {
                 crate::thinker::Thinker::Mobj(m) => m.mobj_type == MobjType::MT_PUFF,
+                _ => false,
             })
             .count();
         assert_eq!(puffs, 1);
@@ -774,6 +775,7 @@ mod tests {
             .thinkers()
             .filter(|(_id, t)| match t {
                 crate::thinker::Thinker::Mobj(m) => m.mobj_type == MobjType::MT_BLOOD,
+                _ => false,
             })
             .count();
         assert_eq!(blood, 1);
