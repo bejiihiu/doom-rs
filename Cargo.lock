@@ -269,6 +269,7 @@ version = "0.1.0"
 dependencies = [
  "cachegirl",
  "cpal",
+ "opl-audio",
  "thiserror 2.0.21",
  "tracing",
  "tracing-subscriber",
@@ -637,6 +638,15 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
+
+[[package]]
+name = "opl-audio"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb4b1dd143f7facda8cf8b866519da3bab071bcbca605d83c8eb74e50733ade1"
+dependencies = [
+ "thiserror 2.0.21",
+]
 
 [[package]]
 name = "pin-project-lite"

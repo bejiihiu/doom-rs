@@ -67,10 +67,12 @@
 //! - `movement` - movement and collision: `P_CheckPosition`/`P_TryMove`,
 //!   the slide move, `P_PathTraverse` and the momentum ticks from
 //!   `p_mobj.c`, ported from `p_map.c`/`p_maputl.c`/`p_mobj.c`.
-//! - `audio` — sound effects: the DMX lump decoder, the mixing core
+//! - `audio` - sound effects: the DMX lump decoder, the mixing core
 //!   (ported from `i_sound.c`), the game-side sound model (ported from
 //!   `s_sound.c`: channel priority eviction, distance attenuation,
 //!   singularity handling) and the cpal output backend.
+//! - `music` - music: the DMX MUS format parser, the GENMIDI OPL instrument
+//!   bank, MUS to MIDI conversion and OPL2 FM synthesis in-process.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
 //!
@@ -280,7 +282,7 @@ pub mod movement;
 /// (`i_sound.c` port), the game-side sound model (`s_sound.c` port:
 /// channel priority eviction, distance attenuation, singularity handling)
 /// and the output backends (cpal for real playback, an in-memory one for
-/// tests). Music is not here; it has its own module on the roadmap.
+/// tests). Music lives in its own module instead; see [`music`].
 ///
 /// [`audio::SoundEngine`] owns the logical channels and the mixer; the
 /// backend reaches the same mixer through [`audio::SharedMixer`].
@@ -291,6 +293,15 @@ pub mod errors;
 pub mod fixed;
 pub mod math;
 pub mod tables;
+
+/// Music: the DMX MUS format and OPL2 FM synthesis, in-process.
+///
+/// [`music::MusicEngine`] parses MUS lumps, synthesizes them through an
+/// OPL2 emulator with the `GENMIDI` instrument bank, and serves mono
+/// samples through [`music::MusicEngine::pull_samples`]. The platform
+/// layer drives it on its own clock; playback speed is the authentic
+/// DMX time division (140 ticks per second).
+pub mod music;
 
 /// Version of the engine crate. Re-exported for binaries and tools so they
 /// can report which engine they were built against.
