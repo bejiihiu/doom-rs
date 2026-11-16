@@ -67,7 +67,10 @@
 //! - `movement` - movement and collision: `P_CheckPosition`/`P_TryMove`,
 //!   the slide move, `P_PathTraverse` and the momentum ticks from
 //!   `p_mobj.c`, ported from `p_map.c`/`p_maputl.c`/`p_mobj.c`.
-//! - `audio` — sound effects and music playback.
+//! - `audio` — sound effects: the DMX lump decoder, the mixing core
+//!   (ported from `i_sound.c`), the game-side sound model (ported from
+//!   `s_sound.c`: channel priority eviction, distance attenuation,
+//!   singularity handling) and the cpal output backend.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
 //!
@@ -272,6 +275,16 @@ pub mod map;
 /// ticks. Side effects the gameplay layer owns (damage, pickups, line
 /// specials, sounds) come back as plain-data [`movement::MoveEvent`]s.
 pub mod movement;
+
+/// Audio: sound effects. The DMX lump decoder, the mixing core
+/// (`i_sound.c` port), the game-side sound model (`s_sound.c` port:
+/// channel priority eviction, distance attenuation, singularity handling)
+/// and the output backends (cpal for real playback, an in-memory one for
+/// tests). Music is not here; it has its own module on the roadmap.
+///
+/// [`audio::SoundEngine`] owns the logical channels and the mixer; the
+/// backend reaches the same mixer through [`audio::SharedMixer`].
+pub mod audio;
 
 pub mod config;
 pub mod errors;
