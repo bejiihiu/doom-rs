@@ -37,7 +37,7 @@ body:
     attributes:
       label: Platform
       description: OS and version, plus the doom-rs version or commit hash (`doom-rs --version`).
-      placeholder: Windows 11, doom-rs 0.1.0 (abc1234)
+      placeholder: Windows 11, doom-rs 1.0.0 (abc1234)
     validations:
       required: true
   - type: textarea
