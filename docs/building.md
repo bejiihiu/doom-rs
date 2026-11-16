@@ -100,7 +100,7 @@ sequences produce identical runs.
 cargo test --workspace                     # unit + integration tests (no IWAD needed)
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
-cargo doc --workspace --no-deps            # rustdoc; must stay warning-free
+cargo doc --workspace --no-deps --locked   # rustdoc; must stay warning-free (RUSTDOCFLAGS="-D warnings")
 cargo bench -p doom-engine                 # criterion benches
 ```
 

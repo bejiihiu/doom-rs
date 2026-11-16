@@ -50,11 +50,10 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
 
-      # not -D warnings yet: module docs still carry broken intra-doc
-      # links (rustdoc warns, doesn't fail) — drop this comment and add
-      # the flag once those get fixed
       - name: Docs
         run: cargo doc --workspace --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
 
       - name: Build release
         run: cargo build --workspace --release --locked

@@ -41,7 +41,7 @@ only touch what your change needs, with a reason.
    cargo fmt --all
    cargo clippy --workspace --all-targets -- -D warnings
    cargo test --workspace
-   cargo doc --workspace --no-deps
+   cargo doc --workspace --no-deps --locked
    ```
 
 4. **Open a PR** against `main` and fill in the description honestly.
