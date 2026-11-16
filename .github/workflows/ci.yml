@@ -26,10 +26,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      # cpal (ALSA backend) needs the dev package present to build on Linux
+      # cpal (ALSA backend) needs the dev package present to build on Linux;
+      # gilrs (gamepad backend) needs libudev
       - name: Install ALSA dev libraries (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev
 
       # PRs restore the main-branch cache but never save their own,
       # so stale PR artifacts don't bloat the cache

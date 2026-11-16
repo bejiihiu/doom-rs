@@ -31,10 +31,10 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # linux build compiles the engine (cpal -> ALSA), same deal as CI
+      # linux build compiles the engine (cpal -> ALSA, gilrs -> libudev)
       - name: Install ALSA dev libraries (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
