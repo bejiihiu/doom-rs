@@ -34,6 +34,8 @@
 //! - `render` - the software renderer: framebuffer, columns, spans,
 //!   lighting, wall/plane rasterizers, sprites, masked passes and sky.
 //! - `stbar` - the status bar: widgets, layout, face state machine.
+//! - `hud` — the heads-up display: the message widget and the level
+//!   title, plus the ported `d_englsh.h` message strings.
 //! - `audio` — sound effects and music playback.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
@@ -125,6 +127,14 @@ pub mod render;
 /// only what changed. The face (mugshot) state machine lives in
 /// [`stbar::FaceMachine`] and is driven once per tic by the game layer.
 pub mod stbar;
+
+/// The heads-up display: the `hu_stuff.c`/`hu_lib.c` port.
+///
+/// [`hud::Hud`] decodes the HUD font (`STCFN033..STCFN095`) once at
+/// startup; [`hud::render_hud`] ticks the message timeout and draws the
+/// message widget and (while the automap is up) the level title. The
+/// `d_englsh.h` player messages are ported as [`hud::HudMessage`].
+pub mod hud;
 
 /// BSP tree traversal and wall clipping, ported from `r_bsp.c`/`r_main.c`.
 ///
