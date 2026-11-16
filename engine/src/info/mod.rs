@@ -9,11 +9,21 @@
 //!   state carries - the gameplay modules wire those up.
 //! - [`sounds`] - `sfxenum_t`/`musicenum_t`, the `S_sfx[]`/`S_music[]`
 //!   tables and the mixing constants from `s_sound.c`.
+//! - [`mobjinfo`] - `mobjtype_t`, the full `mobjinfo[]` table (spawn health,
+//!   states, sounds, radii, `MF_*` flags, ...).
 
+mod mobjinfo;
 mod sounds;
 mod sprites;
 mod states;
 
+pub use mobjinfo::{
+    MF_AMBUSH, MF_CORPSE, MF_COUNTITEM, MF_COUNTKILL, MF_DROPOFF, MF_DROPPED, MF_FLOAT, MF_INFLOAT,
+    MF_JUSTATTACKED, MF_JUSTHIT, MF_MISSILE, MF_NOBLOCKMAP, MF_NOBLOOD, MF_NOCLIP, MF_NOGRAVITY,
+    MF_NOSECTOR, MF_NOTDMATCH, MF_PICKUP, MF_SHADOW, MF_SKULLFLY, MF_SLIDE, MF_SOLID,
+    MF_SPAWNCEILING, MF_SPECIAL, MF_TELEPORT, MF_TRANSLATION, MF_TRANSSHIFT, MOBJ_INFO, MobjInfo,
+    MobjType,
+};
 pub use sounds::{
     MUSIC, MUSIC_COUNT, MusicId, MusicInfo, NORM_PITCH, NORM_PRIORITY, S_ATTENUATOR,
     S_CLIPPING_DIST, S_CLOSE_DIST, S_MAX_VOLUME, S_PITCH_PERTURB, SFX, SFX_COUNT, SfxId, SfxInfo,
