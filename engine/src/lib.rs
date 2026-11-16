@@ -67,6 +67,10 @@
 //! - `movement` - movement and collision: `P_CheckPosition`/`P_TryMove`,
 //!   the slide move, `P_PathTraverse` and the momentum ticks from
 //!   `p_mobj.c`, ported from `p_map.c`/`p_maputl.c`/`p_mobj.c`.
+//! - `weapons` — the player weapons: the overlay (psprite) state
+//!   machines, the `A_*` weapon callbacks, the `weaponinfo[]` table and
+//!   the muzzle flash, ported from `p_pspr.c` / `d_items.c` (plus
+//!   `P_SpawnPlayerMissile` from `p_mobj.c`).
 //! - `audio` - sound effects: the DMX lump decoder, the mixing core
 //!   (ported from `i_sound.c`), the game-side sound model (ported from
 //!   `s_sound.c`: channel priority eviction, distance attenuation,
@@ -280,6 +284,23 @@ pub mod bsp;
 /// for a map-unit box and yield linedef indices in vanilla traversal
 /// order, duplicates included.
 pub mod map;
+
+/// Player weapons: the overlay (psprite) state machines and the `A_*`
+/// weapon callbacks, ported from `p_pspr.c` (plus the `weaponinfo[]`
+/// table from `d_items.c`).
+///
+/// [`weapons::setup_psprites`]/[`weapons::move_psprites`] are the
+/// per-level/per-tic drivers the game loop calls;
+/// [`weapons::set_psprite`] applies a state change (the vanilla
+/// `P_SetPsprite`) and dispatches the `A_*` actions the chain produces,
+/// and [`weapons::dispatch_weapon_action`] is the target of that
+/// dispatch (the gameplay layer chains its own dispatcher from the
+/// `false` case). Sounds and damage come out as plain-data
+/// [`enemy::GameEvent`]s like everywhere else in the gameplay layer.
+/// [`weapons::WEAPON_INFO`] mirrors `weaponinfo[]` (`d_items.c`) and
+/// [`weapons::draw_player_psprites`] is the view half — `R_DrawPSprite`
+/// for the overlay sprites.
+pub mod weapons;
 
 /// Movement and collision: `p_map.c`, `p_maputl.c` and the movement half of
 /// `p_mobj.c`.
