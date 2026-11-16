@@ -19,7 +19,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -31,17 +31,29 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
+      # PRs restore the main-branch cache but never save their own,
+      # so stale PR artifacts don't bloat the cache
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Format
         run: cargo fmt --all -- --check
 
+      # Cargo.lock is tracked, so --locked everywhere: CI builds exactly
+      # what the lockfile pins, no silent dependency drift
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets --workspace --locked -- -D warnings
 
       - name: Test
-        run: cargo test --workspace
+        run: cargo test --workspace --locked
+
+      # not -D warnings yet: module docs still carry broken intra-doc
+      # links (rustdoc warns, doesn't fail) — drop this comment and add
+      # the flag once those get fixed
+      - name: Docs
+        run: cargo doc --workspace --no-deps --locked
 
       - name: Build release
-        run: cargo build --workspace --release
+        run: cargo build --workspace --release --locked

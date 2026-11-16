@@ -24,33 +24,60 @@ jobs:
             target: aarch64-apple-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
+      # linux build compiles the engine (cpal -> ALSA), same deal as CI
+      - name: Install ALSA dev libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      # lockfile is tracked in git, keep the tag build reproducible
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --workspace --release --locked --target ${{ matrix.target }}
 
+      # archive = binary + README + LICENSE, the whole thing users need
       - name: Package (unix)
         if: runner.os != 'Windows'
+        shell: bash
         run: |
-          tar -C target/${{ matrix.target }}/release -czf doom-rs-${{ matrix.target }}.tar.gz doom-rs
+          set -euo pipefail
+          pkg="doom-rs-${{ matrix.target }}"
+          mkdir -p "dist/$pkg"
+          cp "target/${{ matrix.target }}/release/doom-rs" "dist/$pkg/"
+          cp README.md LICENSE "dist/$pkg/"
+          tar -C dist -czf "dist/$pkg.tar.gz" "$pkg"
 
       - name: Package (windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "target/${{ matrix.target }}/release/doom-rs.exe" -DestinationPath "doom-rs-${{ matrix.target }}.zip"
+          $pkg = "doom-rs-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force "dist/$pkg" | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/doom-rs.exe" "dist/$pkg/"
+          Copy-Item README.md, LICENSE "dist/$pkg/"
+          Compress-Archive -Path "dist/$pkg" -DestinationPath "dist/$pkg.zip"
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
+          # body is pre-pended to the GitHub-generated notes, so the
+          # changelog stays automatic while install info stays human
+          body: |
+            doom-rs ${{ github.ref_name }} — a modern rewrite of the DOOM engine in Rust.
+
+            **Downloads:** grab the archive for your platform below and extract it. The `doom-rs` binary runs standalone; the game additionally requires a DOOM IWAD (e.g. `DOOM2.WAD`) which is not included — point the engine at it with the `-iwad` flag or an adjacent file, see the README for details.
+
+            **Archive contents:** the engine binary, `README.md` and `LICENSE` (GPL-2.0-or-later).
+          generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
-            doom-rs-*.tar.gz
-            doom-rs-*.zip
+            dist/doom-rs-*.tar.gz
+            dist/doom-rs-*.zip

@@ -284,10 +284,19 @@ impl TextureSet {
             textures.extend(parse_texture_lump(texture2, &pnames).map_err(EngineError::from)?);
         }
 
-        // resolve and decode every patch up front; a failure is deterministic
-        // and points at the offending lump
+        // resolve and decode only the patches the textures actually need.
+        // vanilla only ever looks up patches through textures, so dangling
+        // PNAMES entries that no texture references are fine to skip
+        let needed: std::collections::HashSet<usize> = textures
+            .iter()
+            .flat_map(|t| t.patches.iter().map(|p| p.patch as usize))
+            .collect();
         let mut patches: Vec<Option<Arc<Patch>>> = Vec::with_capacity(pnames.len());
-        for name in pnames.names() {
+        for (index, name) in pnames.names().iter().enumerate() {
+            if !needed.contains(&index) {
+                patches.push(None);
+                continue;
+            }
             let lump = resources.find_lump(name).ok_or_else(|| {
                 EngineError::Resource(format!("PNAMES patch {name}: lump not found"))
             })?;
@@ -711,11 +720,16 @@ mod tests {
         texture1.extend_from_slice(&8i32.to_le_bytes());
         let mut def = Vec::new();
         def.extend_from_slice(b"EMPTY\0\0\0");
-        def.extend_from_slice(&0i32.to_le_bytes());
-        def.extend_from_slice(&1i16.to_le_bytes());
-        def.extend_from_slice(&4i16.to_le_bytes());
-        def.extend_from_slice(&0i32.to_le_bytes());
-        def.extend_from_slice(&0i16.to_le_bytes()); // zero patches
+        def.extend_from_slice(&0i32.to_le_bytes()); // masked
+        def.extend_from_slice(&1i16.to_le_bytes()); // width
+        def.extend_from_slice(&4i16.to_le_bytes()); // height
+        def.extend_from_slice(&0i32.to_le_bytes()); // obsolete column directory
+        def.extend_from_slice(&1i16.to_le_bytes()); // patch count
+        def.extend_from_slice(&0i16.to_le_bytes()); // originx
+        def.extend_from_slice(&0i16.to_le_bytes()); // originy
+        def.extend_from_slice(&0i16.to_le_bytes()); // patch index (missing lump)
+        def.extend_from_slice(&0i16.to_le_bytes()); // stepdir
+        def.extend_from_slice(&0i16.to_le_bytes()); // colormap
         texture1.extend_from_slice(&def);
 
         let wad = build_wad(b"IWAD", &[("PNAMES", &pnames), ("TEXTURE1", &texture1)]);

@@ -1,0 +1,27 @@
+# dependabot config: weekly version-limited updates
+# (minor + patch only — majors need a human look; grouped to keep
+# PR noise down; both ecosystems capped at 5 open PRs)
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-request-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-request-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
