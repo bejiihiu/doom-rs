@@ -484,6 +484,31 @@ mod tests {
     }
 
     #[test]
+    fn mega_armor_blue_class_absorbs_half() {
+        // mega armor is make-believe name for armortype 2 + 200 points;
+        // vanilla treats it exactly like blue armor
+        let (map, mut store, mut players, mut rng, mut world) = fixture(3);
+        let avatar = spawn_player(&mut store, &map, &mut rng, &mut players, 0, 64, 64);
+        players[0].armortype = 2;
+        players[0].armorpoints = 200;
+
+        run(
+            &map,
+            &mut store,
+            &mut players,
+            &mut rng,
+            &mut world,
+            |ctx| {
+                damage_mobj(ctx, avatar, None, None, 40);
+            },
+        );
+
+        assert_eq!(players[0].armorpoints, 180); // 200 - 40/2
+        assert_eq!(players[0].health, 80); // 100 - 20
+        assert_eq!(players[0].armortype, 2);
+    }
+
+    #[test]
     fn armor_blue_saves_a_half() {
         let (map, mut store, mut players, mut rng, mut world) = fixture(3);
         let avatar = spawn_player(&mut store, &map, &mut rng, &mut players, 0, 64, 64);
