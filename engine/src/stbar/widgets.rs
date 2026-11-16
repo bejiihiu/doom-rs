@@ -133,10 +133,12 @@ pub fn draw_patch(canvas: &mut impl PatchCanvas, patch: &Patch, x: i32, y: i32) 
 /// framebuffer. The `src_*` coordinates are in strip space (the bar lives
 /// at `y` 0..32 there); `dst_*` in screen space.
 ///
-/// Returns an error when the source rectangle is not fully inside the
-/// strip — that would mean a widget is asking to erase a rectangle that
-/// does not exist, which the original aborts on (`I_Error` in RANGECHECK
-/// builds). The destination is clipped to the screen.
+/// The source rectangle is clipped to the strip and the destination to
+/// the framebuffer - a widget whose area pokes out of the bar (wide
+/// digit patches, say) erases only what actually exists, the same
+/// per-pixel clipping philosophy [`draw_patch`] uses. The original
+/// aborted on out-of-strip rects in RANGECHECK builds and read/wrote
+/// adjacent memory otherwise; neither is a behavior worth keeping.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn copy_rect_from_strip(
     fb: &mut IndexedFramebuffer,
@@ -148,16 +150,37 @@ pub(crate) fn copy_rect_from_strip(
     dst_x: i32,
     dst_y: i32,
 ) -> EngineResult<()> {
-    if src_x < 0
-        || src_y < 0
-        || width < 0
-        || height < 0
-        || src_x + width > ST_WIDTH as i32
-        || src_y + height > ST_HEIGHT as i32
-    {
+    if width < 0 || height < 0 {
+        // a widget asking for a negative-size erase is a bug, not data
         return Err(EngineError::Resource(format!(
-            "status bar erase rect out of strip bounds: src=({src_x},{src_y} {width}x{height})"
+            "status bar erase rect has negative size: {width}x{height}"
         )));
+    }
+    // clip the source rectangle against the strip; the destination
+    // shifts along so the two stay in lockstep
+    let mut src_x = src_x;
+    let mut src_y = src_y;
+    let mut dst_x = dst_x;
+    let mut dst_y = dst_y;
+    let mut width = width;
+    let mut height = height;
+    if src_x < 0 {
+        let skip = -src_x;
+        width -= skip;
+        src_x = 0;
+        dst_x += skip;
+    }
+    if src_y < 0 {
+        let skip = -src_y;
+        height -= skip;
+        src_y = 0;
+        dst_y += skip;
+    }
+    width = width.min(ST_WIDTH as i32 - src_x);
+    height = height.min(ST_HEIGHT as i32 - src_y);
+    if width <= 0 || height <= 0 {
+        // the whole rectangle sits outside the strip; nothing to restore
+        return Ok(());
     }
     for row in 0..height {
         let dst_row = dst_y + row;
@@ -475,12 +498,33 @@ mod tests {
     }
 
     #[test]
-    fn copy_rect_rejects_out_of_strip_bounds() {
+    fn copy_rect_clips_to_strip_bounds() {
+        let mut strip = [0u8; STRIP_BYTES];
+        strip[0] = 0x11; // src (x=0, y=0)
+        strip[1] = 0x22; // src (x=1, y=0)
+        strip[31 * ST_WIDTH + 5] = 0xBB; // bottom strip row
+
+        // left clip: src (-2,0) w=4 -> src x=0..2 lands in dst x=102..104
         let mut fb = IndexedFramebuffer::new();
-        let strip = [0u8; STRIP_BYTES];
-        assert!(copy_rect_from_strip(&mut fb, &strip, -1, 0, 4, 4, 0, 0).is_err());
-        assert!(copy_rect_from_strip(&mut fb, &strip, 0, 30, 4, 4, 0, 0).is_err());
-        assert!(copy_rect_from_strip(&mut fb, &strip, 318, 0, 4, 4, 0, 0).is_err());
+        if let Some(row) = fb.row_mut(168) {
+            row.fill(0xEE);
+        }
+        copy_rect_from_strip(&mut fb, &strip, -2, 0, 4, 1, 100, 168).unwrap();
+        assert_eq!(fb.get(102, 168), Some(0x11));
+        assert_eq!(fb.get(103, 168), Some(0x22));
+        assert_eq!(fb.get(104, 168), Some(0xEE));
+
+        // bottom clip: src y=30 h=4 -> only rows 30..32 (strip is 32 tall)
+        let mut fb = IndexedFramebuffer::new();
+        copy_rect_from_strip(&mut fb, &strip, 5, 30, 1, 4, 200, 168).unwrap();
+        assert_eq!(fb.get(200, 168), Some(0)); // src row 30
+        assert_eq!(fb.get(200, 169), Some(0xBB)); // src row 31
+        assert_eq!(fb.get(200, 170), Some(0)); // beyond the clip, untouched
+
+        // fully outside the strip is a no-op, not an error
+        copy_rect_from_strip(&mut fb, &strip, 400, 0, 4, 4, 0, 168).unwrap();
+        copy_rect_from_strip(&mut fb, &strip, 0, 40, 4, 4, 0, 168).unwrap();
+        // negative size is a bug, reported as such
         assert!(copy_rect_from_strip(&mut fb, &strip, 0, 0, -1, 4, 0, 0).is_err());
         assert!(copy_rect_from_strip(&mut fb, &strip, 0, 0, 4, 4, 0, 0).is_ok());
     }

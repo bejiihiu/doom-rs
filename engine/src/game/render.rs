@@ -28,7 +28,6 @@ use crate::render::{
     render_sky, select_row,
 };
 use crate::resources::ResourceManager;
-use crate::stbar::render_status_bar;
 use crate::tables::Angle;
 use crate::weapons::draw_player_psprites;
 use crate::wipe::ScreenWipe;
@@ -432,7 +431,14 @@ fn render_overlays(fb: &mut IndexedFramebuffer, game: &mut Game) {
 
     // status bar
     let status_state = super::game::status_state(game, display);
-    if let Err(err) = render_status_bar(fb, &mut game.status_bar, &status_state) {
+    // This port keeps the full-screen 200-row view, so the floor/wall
+    // pass paints rows ST_Y..200 every frame and the bar background
+    // from the previous refresh is gone by the time the overlay runs.
+    // Vanilla never sees this (its view is capped at 168 rows), so we
+    // re-establish the whole bar every frame instead of relying on
+    // `first_time` or per-widget dirty bits. Fullscreen mode
+    // (screenblocks 11) is unaffected: nothing is drawn then.
+    if let Err(err) = game.status_bar.render(fb, &status_state, true) {
         tracing::warn!("status bar: {err}");
     }
 
