@@ -848,8 +848,8 @@ pub fn spawn_specials(ctx: &mut SpecialContext, level_timer: Option<i32>) -> Spa
     }
 
     // line specials 48: first-column autoscroll
-    for i in 0..ctx.map.linedefs.len() {
-        if ctx.map.linedefs[i].special == 48 {
+    for (i, ldef) in ctx.map.linedefs.iter().enumerate() {
+        if ldef.special == 48 {
             report.scroll_lines.push(i);
         }
     }

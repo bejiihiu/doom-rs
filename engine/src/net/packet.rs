@@ -197,9 +197,9 @@ impl NetPacket {
             num_tics,
             ..NetPacket::default()
         };
-        for i in 0..num_tics as usize {
+        for (i, slot) in packet.cmds.iter_mut().enumerate().take(num_tics as usize) {
             let o = 8 + i * 8;
-            packet.cmds[i] = TicCmd {
+            *slot = TicCmd {
                 forward_move: bytes[o] as i8,
                 side_move: bytes[o + 1] as i8,
                 angle_turn: i16::from_be_bytes([bytes[o + 2], bytes[o + 3]]),

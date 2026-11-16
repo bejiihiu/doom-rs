@@ -1842,8 +1842,8 @@ impl Game {
         // module docs)
 
         // force players to be initialized on first level load
-        for i in 0..MAXPLAYERS {
-            self.players[i].playerstate = PlayerState::Reborn;
+        for player in &mut self.players {
+            player.playerstate = PlayerState::Reborn;
         }
 
         self.usergame = true;
@@ -1937,10 +1937,10 @@ impl Game {
         self.total_kills = 0;
         self.total_items = 0;
         self.total_secret = 0;
-        for i in 0..MAXPLAYERS {
-            self.players[i].killcount = 0;
-            self.players[i].itemcount = 0;
-            self.players[i].secretcount = 0;
+        for player in &mut self.players {
+            player.killcount = 0;
+            player.itemcount = 0;
+            player.secretcount = 0;
         }
 
         // the sentinel viewz forces onground=false until P_CalcHeight runs
@@ -2177,9 +2177,7 @@ impl Game {
             p.viewheight = VIEWHEIGHT;
 
             if self.deathmatch {
-                for index in 0..crate::player::NUM_CARDS {
-                    p.cards[index] = true;
-                }
+                p.cards.fill(true);
             }
         }
 
@@ -4146,8 +4144,8 @@ impl Game {
                 }
                 9 => {
                     // returning from the secret level
-                    for i in 0..MAXPLAYERS {
-                        self.players[i].didsecret = true;
+                    for player in &mut self.players {
+                        player.didsecret = true;
                     }
                 }
                 _ => {}
