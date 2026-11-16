@@ -221,6 +221,19 @@ pub mod finale;
 /// must do comes out as [`intermission::IntermissionEvent`]s.
 pub mod intermission;
 
+/// Interactions: the `p_inter.c` port. Damage, death, pickups and the
+/// item/kill tally for the intermission stats.
+///
+/// [`inter::damage_mobj`] applies damage (armor saves, the hell-level
+/// endgame hack, thrust from the inflictor, pain/wake-up, death),
+/// [`inter::kill_mobj`] handles the death transition (drop items, the
+/// kill/frag counters, player death) and [`inter::touch_special_thing`]
+/// is the sprite-keyed pickup switch (weapons, ammo, armor, keys, power
+/// up artifacts, backpack). Side effects the game loop must apply come
+/// out as plain-data [`enemy::GameEvent`]s (state chains) and
+/// [`inter::InterEvent`]s (sounds, the weapon drop, the automap stop).
+pub mod inter;
+
 /// Monster AI: the `p_enemy.c`/`p_sight.c` port.
 ///
 /// The `A_*` state callbacks monsters hang off `states[]` (`A_Look`,
