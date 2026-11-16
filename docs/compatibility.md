@@ -51,11 +51,13 @@ integer-exact slope math), verified against the 1.10 sources.
 
 ## Not verified yet
 
-- **End-to-end run with a real IWAD.** The windowed shell is written
-  against the current winit/softbuffer APIs and reviewed, but the first
-  run with a real IWAD has not happened yet; expect issues. All
-  headless behavior (boot, level load, rendering, combat) is pinned by
-  integration tests on a synthetic WAD.
+- **Broader real-IWAD verification.** On Windows, the shareware
+  `doom1.wad` boots through the title, menu and into E1M1, with muzzle
+  flash, HUD and sound. Not yet verified: full playthroughs, episodes
+  2–4, DOOM II / Plutonia / TNT, net play between machines, save/load
+  roundtrip under a real IWAD, and Linux/macOS. All headless behavior
+  (boot, level load, rendering, combat) is pinned by integration tests
+  on a synthetic WAD.
 
 ## Known limitations
 

@@ -82,10 +82,11 @@ only touch what your change needs, with a reason.
 - Items in `docs/compatibility.md` under "Known limitations" are the
   honest list of gaps. Picking one up is welcome; say so in an issue or
   the PR so work isn't duplicated.
-- The first end-to-end run with a real IWAD is the critical open item.
-  If you can test with a legal IWAD on your machine, reports of what
-  breaks are extremely valuable — include your platform and IWAD
-  variant.
+- Broader real-IWAD verification is the critical open item: full
+  playthroughs, all episodes, DOOM II / Plutonia / TNT, and net play
+  between machines. If you can test with a legal IWAD on your machine,
+  reports of what breaks are extremely valuable — include your platform
+  and IWAD variant.
 
 ## Reporting bugs
 

@@ -15,11 +15,10 @@ behave the way the original does. The engine is a library; the windowed
 binary is a thin shell on top of it.
 
 **Status: work in progress.** The engine is feature complete and the test
-suite is green, and the windowed shell builds and is code-reviewed
-against the current winit/softbuffer APIs. It has not yet had an
-end-to-end run with a real IWAD — that verification is in progress.
-Expect the first real experience to be rough; do not delete your
-original executable.
+suite is green; on Windows, the shareware `doom1.wad` boots through the
+title and menu into E1M1, with HUD and sound. Broader verification
+(full playthroughs, other episodes and IWAD families, net play,
+save/load, other platforms) is in progress.
 
 ## Features
 
