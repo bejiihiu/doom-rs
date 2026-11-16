@@ -6,6 +6,8 @@
 //! Exit codes (every command): 2 = fatal error, 1 = finished with
 //! warnings, 0 = clean success.
 
+#![forbid(unsafe_code)]
+
 use std::io;
 use std::path::PathBuf;
 use std::process::ExitCode;

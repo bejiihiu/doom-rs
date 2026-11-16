@@ -3,6 +3,8 @@
 //! Parses through `doom-engine`'s WAD API ([`doom_engine::wad`]); this binary
 //! only does presentation and reporting on top of it.
 
+#![forbid(unsafe_code)]
+
 use std::io;
 use std::path::PathBuf;
 use std::process::ExitCode;

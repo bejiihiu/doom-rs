@@ -6,6 +6,8 @@
 //! Any failure before the window opens is a message on stderr and exit
 //! code 1 - never a panic, never a half-initialized game.
 
+#![forbid(unsafe_code)]
+
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};

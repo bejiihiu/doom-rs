@@ -6,6 +6,8 @@
 //! for analysis - it only accepts vanilla 1.10 demos and gives no access
 //! to the raw bytes; see `demo.rs` for the rationale.
 
+#![forbid(unsafe_code)]
+
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
