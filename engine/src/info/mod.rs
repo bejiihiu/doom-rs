@@ -1,5 +1,5 @@
-//! Game data tables, ported from `info.c`, `info.h`, `sounds.c`/`sounds.h`
-//! and `s_sound.c`. Everything here is plain static data, laid out exactly
+//! Game data tables, ported from `info.c`/`info.h`, `sounds.c`/`sounds.h`
+//! and `p_switch.c`. Everything here is plain static data, laid out exactly
 //! like the vanilla tables so the mapping back to the C source stays 1:1.
 //!
 //! - [`sprites`] - `spritenum_t` and `sprnames`.
@@ -11,11 +11,18 @@
 //!   tables and the mixing constants from `s_sound.c`.
 //! - [`mobjinfo`] - `mobjtype_t`, the full `mobjinfo[]` table (spawn health,
 //!   states, sounds, radii, `MF_*` flags, ...).
+//! - [`switches`] - the `alphSwitchList[]` on/off texture pairs
+//!   (`P_InitSwitchList` resolves them to texture indices at startup).
+//!
+//! Runtime scratch that vanilla kept inside the table structs (`lumpnum`,
+//! `usefulness`, `data`, `handle`, button list state) is deliberately not
+//! ported here - it lives with the sound/mobility subsystems that own it.
 
 mod mobjinfo;
 mod sounds;
 mod sprites;
 mod states;
+mod switches;
 
 pub use mobjinfo::{
     MF_AMBUSH, MF_CORPSE, MF_COUNTITEM, MF_COUNTKILL, MF_DROPOFF, MF_DROPPED, MF_FLOAT, MF_INFLOAT,
@@ -30,3 +37,4 @@ pub use sounds::{
 };
 pub use sprites::{SPRITE_COUNT, SPRITE_NAMES, Sprite};
 pub use states::{FF_FULLBRIGHT, STATES, State, StateAction, StateId};
+pub use switches::{BUTTONTIME, MAXBUTTONS, MAXSWITCHES, SWITCH_LIST, SwitchListEntry};
