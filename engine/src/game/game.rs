@@ -297,6 +297,8 @@ pub mod keys {
     pub const F5: u8 = 0x80 + 0x3f;
     /// `KEY_F6`.
     pub const F6: u8 = 0x80 + 0x40;
+    /// `KEY_F8`. Not bound by the original game; used for the frame-stats overlay.
+    pub const F8: u8 = 0x80 + 0x42;
     /// `KEY_F9`.
     pub const F9: u8 = 0x80 + 0x43;
     /// `KEY_F10`.
@@ -387,6 +389,7 @@ pub struct Game {
     pub(crate) menu: Menu,
     pub(crate) menu_assets: MenuAssets,
     pub(crate) automap: AutomapState,
+    pub(crate) fps_overlay: crate::fps_overlay::FpsOverlay,
     // -- intermission / finale -------------------------------------------
     pub(crate) intermission: Option<Intermission>,
     pub(crate) finale: Option<crate::finale::Finale>,
@@ -510,6 +513,7 @@ impl Game {
         let font = crate::hud::HudFont::load(&resources)?;
         let menu_assets = MenuAssets::load(&resources)?;
         let status_bar = StatusBar::load(&resources, 0)?;
+        let fps_overlay = crate::fps_overlay::FpsOverlay::default();
         let automap = AutomapState::load(&resources).unwrap_or_else(|err| {
             tracing::warn!("automap assets not fully available: {err}; marks will not render");
             AutomapState::new()
@@ -609,6 +613,7 @@ impl Game {
             font,
             hud,
             status_bar,
+            fps_overlay,
             face: FaceMachine::new(),
             menu,
             menu_assets,
@@ -843,10 +848,13 @@ impl Game {
     pub(crate) fn advance_net(
         &mut self,
         input: &TicCmdInput,
-        _elapsed_ms: u64,
+        elapsed_ms: u64,
         fb: &mut IndexedFramebuffer,
     ) -> EngineResult<()> {
         self.net_platform_input = *input;
+        // the governor ignores wall time, but the overlay is wall-clock;
+        // record the platform delta so net games get local telemetry too
+        self.fps_overlay.record_frame(elapsed_ms);
 
         if self.net_phase == NetPhase::WaitingForPlayers {
             if let Some(settings) = self.net_arbitration_step()? {
@@ -885,6 +893,12 @@ impl Game {
     /// main loop when this turns true.
     pub fn should_quit(&self) -> bool {
         self.quit_requested
+    }
+
+    /// Whether the F8 debug overlay (frame stats) is currently enabled.
+    /// Purely a render-side flag; it never influences the simulation.
+    pub fn show_fps(&self) -> bool {
+        self.fps_overlay.enabled()
     }
 
     /// The current gamestate (vanillas `gamestate`).
@@ -934,6 +948,9 @@ impl Game {
         }
         let merged = self.sample_local_input(input);
         self.run_tic(&merged)?;
+        // no wall clock on this path (headless/demo tics); use the nominal
+        // tic length so the overlay still gets sensible samples
+        self.fps_overlay.record_frame(1000 / TICRATE as u64);
         super::render::render_frame(fb, self)?;
         self.update_sounds();
         Ok(())
@@ -963,6 +980,7 @@ impl Game {
             self.run_tic(&merged)?;
             ran += 1;
         }
+        self.fps_overlay.record_frame(elapsed_ms);
         super::render::render_frame(fb, self)?;
         self.update_sounds();
         Ok(())
@@ -1169,6 +1187,12 @@ impl Game {
             }
             keys::F6 => {
                 let _ = self.menu.quick_save();
+                return true;
+            }
+            keys::F8 => {
+                // local debug tool; has no business with demos or net games,
+                // it just flips a render flag
+                self.fps_overlay.toggle();
                 return true;
             }
             keys::F9 => {

@@ -593,6 +593,11 @@ pub(crate) fn render_frame(fb: &mut IndexedFramebuffer, game: &mut Game) -> Engi
         }
     }
 
+    // the F8 frame-stats overlay floats above everything else, debug
+    // tool or not; the telemetry is render-side and never touches the
+    // simulation
+    game.fps_overlay.draw(&mut *fb, &game.font);
+
     Ok(())
 }
 

@@ -385,6 +385,10 @@ pub mod tables;
 /// DMX time division (140 ticks per second).
 pub mod music;
 
+// The F8 frame-stats overlay: a private render-side tool, drawn on every
+// frame above everything else. See `fps_overlay.rs`.
+mod fps_overlay;
+
 /// The game loop, ported from `g_game.c`/`p_tick.c`/`p_user.c`/`p_setup.c`
 /// and the `d_main.c` application shell: game state (`GS_LEVEL` and
 /// friends), the ticker, the level bring-up, demos, save games and the
