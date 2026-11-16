@@ -1,6 +1,7 @@
-//! Line and sector specials: doors, switches, light-flash thinkers and
-//! teleports. Ported from `p_doors.c`, `p_switch.c`, `p_lights.c` and
-//! `p_telept.c` (with the shared `p_spec.c` queries).
+//! Line and sector specials: doors, switches, light-flash thinkers,
+//! teleports, floors, plats, ceilings and the line-special dispatcher.
+//! Ported from `p_doors.c`, `p_switch.c`, `p_lights.c`, `p_telept.c`,
+//! `p_floor.c`, `p_plats.c`, `p_ceilng.c` and `p_spec.c`.
 //!
 //! ## Model
 //!
@@ -21,13 +22,11 @@
 //!
 //! ## What is deliberately not here
 //!
-//! * The `P_UseSpecialLine` / `P_CrossSpecialLine` / `P_ShootSpecialLine`
-//!   dispatch tables — that is the line-special interpreter, a later port.
-//!   The `EV_*` functions here are the actions those dispatchers call.
-//! * Floor/plat/ceiling movers (`p_floor.c`, `p_plats.c`, `p_ceilng.c`).
-//!   The shared mover machinery ([`movers`]) lives here because doors need
-//!   it first; the heavier ports build on the same pieces.
-//! * Animated flats/textures and the level timer — `p_spec.c` proper.
+//! * The animated flats/textures tables (`animdefs`/`texturetranslation`)
+//!   — they feed the render layer's translation tables, which owns them.
+//! * The world-tic damage plumbing for sector specials (5/7/16/4/11) is
+//!   here as [`lineactions::player_in_special_sector`], but the actual
+//!   damage application is the game loop's (via the events channel).
 //!
 //! ## Not-quite-vanilla notes
 //!
@@ -54,9 +53,13 @@
 //!   and tag so a compatible "linked switch" layer can be added later
 //!   without changing this module.
 
+pub(crate) mod ceilings;
 pub(crate) mod doors;
+pub(crate) mod floor;
 mod lights;
+pub(crate) mod lineactions;
 pub(crate) mod movers;
+pub(crate) mod plats;
 mod switches;
 mod teleport;
 mod util;
@@ -73,16 +76,25 @@ use crate::player::Player;
 use crate::rng::DoomRng;
 use crate::thinker::{Thinker, ThinkerId, ThinkerRegistry};
 
+pub use ceilings::{CEILSPEED, Ceiling, CeilingKind, ev_ceiling_crush_stop, ev_do_ceiling};
 pub use doors::{
     DoorKind, VDOORSPEED, VDOORWAIT, VerticalDoor, ev_do_door, ev_do_locked_door, ev_vertical_door,
     spawn_door_close_in_30, spawn_door_raise_in_5_mins,
+};
+pub use floor::{
+    FLOORSPEED, FloorKind, FloorMover, StairKind, ev_build_stairs, ev_do_donut, ev_do_floor,
 };
 pub use lights::{
     FASTDARK, FireFlicker, GLOWSPEED, Glow, LightFlash, SLOWDARK, STROBEBRIGHT, StrobeFlash,
     ev_light_turn_on, ev_start_light_strobing, ev_turn_tag_lights_off, spawn_fire_flicker,
     spawn_glowing_light, spawn_light_flash, spawn_strobe_flash,
 };
-// agent 30 re-exports what it needs from the `pub(crate)` movers module
+pub use lineactions::{
+    LineAction, SpawnSpecialsReport, SwitchState, cross_special_line, handle_line_activation,
+    player_in_special_sector, shoot_special_line, spawn_specials, update_specials,
+    use_special_line,
+};
+pub use plats::{PLATSPEED, PLATWAIT, Plat, PlatKind, PlatStatus, ev_do_plat, ev_stop_plat};
 pub use switches::{ButtonList, ButtonWhere, SwitchList, change_switch_texture, update_buttons};
 pub use teleport::ev_teleport;
 
@@ -166,6 +178,31 @@ pub enum SpecialEvent {
     /// (e.g. stomping an item at the destination); forwarded verbatim from
     /// the movement layer's report.
     Move(MoveEvent),
+    /// Vanilla `G_ExitLevel()` / `G_SecretExitLevel()`: the level is over.
+    /// The game loop decides what to do with the world (wipe to the
+    /// intermission or the secret-exit map). `secret` selects the secret
+    /// exit path (vanilla `G_SecretExitLevel`).
+    ExitLevel {
+        /// True for the secret exit, false for the regular one.
+        secret: bool,
+    },
+}
+
+/// Resolves a raw 8-byte texture name to its height in fixed point.
+///
+/// `None` for missing textures (vanilla's `-1` texture number). Only
+/// the raise-to-texture floor special needs it; when the resolver is
+/// absent the special is skipped with a warning instead of moving a
+/// floor to a made-up height. The game loop wires its texture set in
+/// here (vanilla read the render-side `textureheight[]` table
+/// directly).
+#[derive(Clone, Copy)]
+pub struct TextureHeightResolver<'a>(pub &'a dyn Fn(&[u8; 8]) -> Option<Fixed>);
+
+impl std::fmt::Debug for TextureHeightResolver<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TextureHeightResolver(..)")
+    }
 }
 
 /// Everything the specials layer is allowed to touch.
@@ -195,6 +232,9 @@ pub struct SpecialContext<'a> {
     /// Vanilla `gamemap == 30`: teleports flatten things that are not
     /// shootable (the boss level).
     pub boss_level: bool,
+    /// Resolves a raw 8-byte texture name to its height in fixed point.
+    /// See [`TextureHeightResolver`].
+    pub texture_height: Option<TextureHeightResolver<'a>>,
     /// Thinkers queued by the gameplay layer this tic; they are appended
     /// at the start of the next pass and execute there, like vanilla's
     /// in-pass `P_AddThinker`.
@@ -239,10 +279,17 @@ impl<'a> SpecialContext<'a> {
             leveltime: 0,
             skill: Skill::Medium,
             boss_level: false,
+            texture_height: None,
             pending_thinkers: Vec::new(),
             pending_commands: Vec::new(),
             events: Vec::new(),
         }
+    }
+
+    /// Sets the texture-height resolver (see [`SpecialContext::texture_height`]).
+    pub fn with_texture_height(mut self, resolver: &'a dyn Fn(&[u8; 8]) -> Option<Fixed>) -> Self {
+        self.texture_height = Some(TextureHeightResolver(resolver));
+        self
     }
 
     fn queue_flip_door_direction(&mut self, sector: usize, direction: i32) {
@@ -349,6 +396,9 @@ enum Dispatch {
     LightFlash,
     StrobeFlash,
     Glow,
+    FloorMover,
+    Plat,
+    Ceiling,
 }
 
 fn dispatch(reg: &mut ThinkerRegistry, id: ThinkerId, ctx: &mut PassCtx<'_>) {
@@ -358,6 +408,9 @@ fn dispatch(reg: &mut ThinkerRegistry, id: ThinkerId, ctx: &mut PassCtx<'_>) {
         Some(Thinker::LightFlash(_)) => Dispatch::LightFlash,
         Some(Thinker::StrobeFlash(_)) => Dispatch::StrobeFlash,
         Some(Thinker::Glow(_)) => Dispatch::Glow,
+        Some(Thinker::FloorMover(_)) => Dispatch::FloorMover,
+        Some(Thinker::Plat(_)) => Dispatch::Plat,
+        Some(Thinker::Ceiling(_)) => Dispatch::Ceiling,
         // mobjs and anything not ours
         _ => return,
     };
@@ -367,6 +420,9 @@ fn dispatch(reg: &mut ThinkerRegistry, id: ThinkerId, ctx: &mut PassCtx<'_>) {
         Dispatch::LightFlash => lights::run_light_flash(reg, id, ctx),
         Dispatch::StrobeFlash => lights::run_strobe_flash(reg, id, ctx),
         Dispatch::Glow => lights::run_glow(reg, id, ctx),
+        Dispatch::FloorMover => floor::run_floor_mover(reg, id, ctx),
+        Dispatch::Plat => plats::run_plat(reg, id, ctx),
+        Dispatch::Ceiling => ceilings::run_ceiling(reg, id, ctx),
     }
 }
 
@@ -394,9 +450,49 @@ pub(crate) fn active_door_direction(
     None
 }
 
-/// True when a door thinker is already moving `sector` (live or queued
-/// this tic). Vanilla tracks this through `sector->specialdata`; a registry
-/// scan keeps the registry the single source of truth.
+/// Visits every thinker (queued this tic first, then the live registry)
+/// with a mutable borrow. Used by the stasis scans of `EV_StopPlat` /
+/// `EV_CeilingCrushStop` and the re-activation in `P_ActivateInStasis`.
+pub(crate) fn for_each_thinker_mut(
+    store: &mut crate::mobj::MobjStore,
+    pending: &mut [Thinker],
+    mut f: impl FnMut(&mut Thinker),
+) {
+    for thinker in pending.iter_mut() {
+        f(thinker);
+    }
+    let ids: Vec<ThinkerId> = store.thinkers().map(|(id, _)| id).collect();
+    let reg = store.registry_mut();
+    for id in ids {
+        if let Some(thinker) = reg.get_mut(id) {
+            f(thinker);
+        }
+    }
+}
+
+/// The sector a mover thinker is operating on, if any.
+///
+/// Vanilla's `sector->specialdata` is a single pointer shared by doors,
+/// plats, ceilings and floors — a sector with any of those running is
+/// busy for all of them. This is the rust-side equivalent of reading
+/// that pointer.
+pub(crate) fn mover_sector(thinker: &Thinker) -> Option<usize> {
+    match thinker {
+        Thinker::Door(door) => Some(door.sector),
+        Thinker::FloorMover(floor) => Some(floor.sector),
+        Thinker::Plat(plat) => Some(plat.sector),
+        Thinker::Ceiling(ceiling) => Some(ceiling.sector),
+        _ => None,
+    }
+}
+
+/// True when any mover thinker (door, plat, ceiling or floor) is already
+/// operating on `sector`, live or queued this tic. Vanilla tracks this
+/// through `sector->specialdata`; a registry scan keeps the registry the
+/// single source of truth.
 pub(crate) fn sector_busy(store: &MobjStore, pending: &[Thinker], sector: usize) -> bool {
-    active_door_direction(store, pending, sector).is_some()
+    pending.iter().any(|t| mover_sector(t) == Some(sector))
+        || store
+            .thinkers()
+            .any(|(_, thinker)| mover_sector(thinker) == Some(sector))
 }

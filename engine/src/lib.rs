@@ -69,9 +69,14 @@
 //!   `p_mobj.c`, ported from `p_map.c`/`p_maputl.c`/`p_mobj.c`.
 //! - `specials` - line and sector specials: doors (`p_doors.c`), the
 //!   wall-switch machinery (`p_switch.c`), light-flash thinkers
-//!   (`p_lights.c`) and teleports (`p_telept.c`), sharing the moving-sector
-//!   machinery from `p_floor.c`/`p_map.c`. Side effects come out as
-//!   plain-data events for the game loop to apply.
+//!   (`p_lights.c`), teleports (`p_telept.c`), floors (`p_floor.c`),
+//!   elevator platforms (`p_plats.c`), ceilings and crushers
+//!   (`p_ceilng.c`), the `p_spec.c` line-special dispatcher
+//!   ([`specials::handle_line_activation`] and friends) and the
+//!   `P_SpawnSpecials`/`P_UpdateSpecials` scan. The moving-sector
+//!   machinery shared by movers (the `T_MovePlane`/`P_ChangeSector`
+//!   half of `p_floor.c`/`p_map.c`) lives in the module too.
+//!   Side effects come out as plain-data events for the game loop.
 //! - `weapons` — the player weapons: the overlay (psprite) state
 //!   machines, the `A_*` weapon callbacks, the `weaponinfo[]` table and
 //!   the muzzle flash, ported from `p_pspr.c` / `d_items.c` (plus
@@ -322,15 +327,22 @@ pub mod weapons;
 
 /// Line and sector specials: doors (the `p_doors.c` port), the wall
 /// switch machinery (the `p_switch.c` port), light-flash thinkers
-/// (`p_lights.c`) and teleports (`p_telept.c`). The moving-sector
-/// machinery shared with floors/ceilings (the `T_MovePlane`/
+/// (`p_lights.c`), teleports (`p_telept.c`), floors (the `p_floor.c`
+/// port: `EV_DoFloor`, stairs, donuts), elevator platforms (the
+/// `p_plats.c` port), ceiling crushers (the `p_ceilng.c` port) and the
+/// `p_spec.c` line-special interpreter
+/// ([`specials::handle_line_activation`] plus the `use`/`cross`/`shoot`
+/// tables, the `P_SpawnSpecials` map-load scan, the `P_UpdateSpecials`
+/// button/timer/scroll tick and `P_PlayerInSpecialSector`). The
+/// moving-sector machinery shared by movers (the `T_MovePlane`/
 /// `P_ChangeSector` half of `p_floor.c`/`p_map.c`) lives in the module
 /// too.
 ///
 /// Thinkers are [`thinker::Thinker`] variants in the shared registry,
 /// dispatched by [`specials::run_thinkers`]; the `EV_*` entry points are
-/// called by the line-special interpreter (a later port). Side effects
-/// come out as plain-data [`specials::SpecialEvent`]s.
+/// called by the line-special interpreter. Side effects come out as
+/// plain-data [`specials::SpecialEvent`]s; exits are
+/// [`specials::SpecialEvent::ExitLevel`].
 pub mod specials;
 
 /// Movement and collision: `p_map.c`, `p_maputl.c` and the movement half of

@@ -51,7 +51,6 @@ pub(crate) fn find_sector_from_line_tag(
 }
 
 /// Vanilla `P_FindLowestFloorSurrounding`.
-#[allow(dead_code)] // the plat-raise and floor specials will consume this one
 pub(crate) fn find_lowest_floor_surrounding(map: &Map, sector: usize) -> Fixed {
     let mut floor = map.sectors[sector].floor_height;
     for index in sector_lines(map, sector) {
@@ -65,7 +64,6 @@ pub(crate) fn find_lowest_floor_surrounding(map: &Map, sector: usize) -> Fixed {
 }
 
 /// Vanilla `P_FindHighestFloorSurrounding`.
-#[allow(dead_code)] // plats/floors will consume this one
 pub(crate) fn find_highest_floor_surrounding(map: &Map, sector: usize) -> Fixed {
     let mut floor = Fixed::from_raw(-500 * crate::fixed::FRACUNIT);
     for index in sector_lines(map, sector) {
@@ -81,7 +79,6 @@ pub(crate) fn find_highest_floor_surrounding(map: &Map, sector: usize) -> Fixed 
 /// Vanilla `P_FindNextHighestFloor`: the smallest floor height among the
 /// surrounding sectors that is strictly higher than `currentheight`, or
 /// `currentheight` when there is none.
-#[allow(dead_code)] // the plat-raise specials will consume this one
 pub(crate) fn find_next_highest_floor(map: &Map, sector: usize, currentheight: Fixed) -> Fixed {
     const MAX_ADJOINING_SECTORS: usize = 20;
 
@@ -118,7 +115,6 @@ pub(crate) fn find_lowest_ceiling_surrounding(map: &Map, sector: usize) -> Fixed
 }
 
 /// Vanilla `P_FindHighestCeilingSurrounding`.
-#[allow(dead_code)] // the ceiling specials will consume this one
 pub(crate) fn find_highest_ceiling_surrounding(map: &Map, sector: usize) -> Fixed {
     let mut height = Fixed::ZERO;
     for index in sector_lines(map, sector) {

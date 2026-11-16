@@ -50,7 +50,6 @@ pub enum MoveOutcome {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PlaneKind {
     /// Move `sector->floorheight`.
-    #[allow(dead_code)] // agent 30's floors/plats consume this
     Floor,
     /// Move `sector->ceilingheight`.
     Ceiling,

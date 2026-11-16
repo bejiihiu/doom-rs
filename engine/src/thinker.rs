@@ -46,7 +46,9 @@
 use std::fmt;
 
 use crate::mobj::Mobj;
-use crate::specials::{FireFlicker, Glow, LightFlash, StrobeFlash, VerticalDoor};
+use crate::specials::{
+    Ceiling, FireFlicker, FloorMover, Glow, LightFlash, Plat, StrobeFlash, VerticalDoor,
+};
 
 /// A handle into the registry, like a `slotmap` key: a slot index plus
 /// the generation that slot had when the handle was handed out.
@@ -106,6 +108,15 @@ pub enum Thinker {
     /// Vanilla `T_Glow` (`p_lights.c`): the slow breathing glow
     /// (sector special 8).
     Glow(Glow),
+    /// Vanilla `T_MoveFloor` (`p_floor.c`): floors moving up/down
+    /// (raise/lower specials, stairs, donuts).
+    FloorMover(FloorMover),
+    /// Vanilla `T_PlatRaise` (`p_plats.c`): elevator platforms going
+    /// up/down, perpetual raise, stasis on command.
+    Plat(Plat),
+    /// Vanilla `T_MoveCeiling` (`p_ceilng.c`): ceiling crushers and
+    /// one-way ceiling movers.
+    Ceiling(Ceiling),
 }
 
 struct Slot {
