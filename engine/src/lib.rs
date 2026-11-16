@@ -217,6 +217,20 @@ pub mod finale;
 /// must do comes out as [`intermission::IntermissionEvent`]s.
 pub mod intermission;
 
+/// Monster AI: the `p_enemy.c`/`p_sight.c` port.
+///
+/// The `A_*` state callbacks monsters hang off `states[]` (`A_Look`,
+/// `A_Chase`, the melee/missile attacks, the viles, the DOOM II brain, ...),
+/// the line-of-sight machinery (`P_CheckSight` with the REJECT matrix and
+/// the BSP slope-window walk) and the noise-alert flood
+/// (`P_NoiseAlert`/`P_RecursiveSound`). Damage, sounds and special-line
+/// effects come back as plain-data [`enemy::GameEvent`]s; the gameplay
+/// layer dispatches them. [`enemy::set_mobj_state_and_run_actions`] wraps
+/// [`mobj::MobjStore::set_mobj_state`] and runs the A_* actions a state
+/// chain produces, recursing through nested state changes the way vanilla
+/// recursion does.
+pub mod enemy;
+
 /// Game objects: the `mobj_t` from `p_mobj.h` and the spawn/lifecycle
 /// half of `p_mobj.c`.
 ///
