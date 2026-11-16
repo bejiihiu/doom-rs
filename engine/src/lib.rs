@@ -93,6 +93,11 @@
 //!   assembly from `d_main.c`/`r_main.c` — BSP traversal, planes, sky,
 //!   sprites, weapon overlay, status bar, HUD, automap and menu.
 //!   Everything is driven from headless tests; no windowing.
+//! - `net` — network play, ported from `d_net.c`/`i_net.c`: the wire format
+//!   (`doomdata_t`, NCMD flags, the DOS checksum), the node list, the
+//!   retransmit machinery, the tic governor (`TryRunTics`), the setup
+//!   arbitration and the consistency check. The game shell plugs in through
+//!   `net::NetGameHooks`; UDP via [`net::UdpTransport`].
 //!
 //! Auxiliary developer tools live in the `tools/` directory of the
 //! workspace: `wad-inspector`, `asset-inspector` and `demo-analyzer`.
@@ -391,6 +396,14 @@ pub mod music;
 /// frame, [`game::Game::should_quit`] reports the player's quit request,
 /// and [`game::InputEvent`] carries OS-level input into the engine.
 pub mod game;
+
+/// Network play, ported from `d_net.c`/`i_net.c`: the wire format
+/// (`doomdata_t` and the `NCMD_*` flags), the node list, the retransmit
+/// machinery, the `TryRunTics` tic governor, the setup arbitration
+/// (`D_ArbitrateNetStart`) and the consistency check from `G_Ticker`.
+/// The game shell plugs in through [`net::NetGameHooks`]; real sockets via
+/// [`net::UdpTransport`], injected transports for tests.
+pub mod net;
 
 /// Version of the engine crate. Re-exported for binaries and tools so they
 /// can report which engine they were built against.
