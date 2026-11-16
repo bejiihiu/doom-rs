@@ -39,6 +39,8 @@
 //! - `menu` — the menu system: main menu, options, load/save menus,
 //!   the quit/end-game prompts and the cheat-code matcher, ported from
 //!   `m_menu.c`/`m_cheat.c` (includes the `d_englsh.h` prompt strings).
+//! - `automap` — the automap: follow/zoom/marks, the map window,
+//!   line colors, seen-line tracking, ported from `am_map.c`.
 //! - `audio` — sound effects and music playback.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
@@ -148,6 +150,16 @@ pub mod hud;
 /// Cheat codes go through [`menu::CheatTable`] and come out as
 /// [`menu::CheatEvent`]s.
 pub mod menu;
+
+/// The automap: the `am_map.c` port.
+///
+/// [`automap::AutomapState`] is the retained state (window geometry,
+/// zoom, follow mode, marks, seen-line tracking); [`automap::render_automap`]
+/// draws the map window into the framebuffer. Input events come in as
+/// [`automap::AutomapInput`] and player messages come back as
+/// [`automap::AutomapResponse`]; the level-name title stays with the
+/// HUD ([`hud::HudState`]).
+pub mod automap;
 
 /// BSP tree traversal and wall clipping, ported from `r_bsp.c`/`r_main.c`.
 ///
