@@ -46,7 +46,7 @@ pub struct MenuAssets {
     pub(crate) m_epi1: Arc<Patch>,
     pub(crate) m_epi2: Arc<Patch>,
     pub(crate) m_epi3: Arc<Patch>,
-    pub(crate) m_epi4: Arc<Patch>,
+    pub(crate) m_epi4: Option<Arc<Patch>>,
     pub(crate) m_jkill: Arc<Patch>,
     pub(crate) m_rough: Arc<Patch>,
     pub(crate) m_hurt: Arc<Patch>,
@@ -64,10 +64,10 @@ pub struct MenuAssets {
     pub(crate) m_gdlow: Arc<Patch>,
     pub(crate) m_msgoff: Arc<Patch>,
     pub(crate) m_msgon: Arc<Patch>,
-    pub(crate) help: Arc<Patch>,
-    pub(crate) help1: Arc<Patch>,
-    pub(crate) help2: Arc<Patch>,
-    pub(crate) credit: Arc<Patch>,
+    pub(crate) help: Option<Arc<Patch>>,
+    pub(crate) help1: Option<Arc<Patch>>,
+    pub(crate) help2: Option<Arc<Patch>>,
+    pub(crate) credit: Option<Arc<Patch>>,
     pub(crate) ls_left: Arc<Patch>,
     pub(crate) ls_cntr: Arc<Patch>,
     pub(crate) ls_rght: Arc<Patch>,
@@ -86,6 +86,18 @@ fn load_patch(resources: &ResourceManager, name: &str) -> EngineResult<Arc<Patch
     resources.decode_cached::<Patch>(index, |bytes| {
         decode_patch(bytes).map_err(EngineError::from)
     })
+}
+
+/// Menu patches that only ship in some game modes (episodes of Ultimate
+/// DOOM, DOOM2 vs DOOM1 help pages). Absent in this WAD -> `None`, the
+/// menu just skips drawing them.
+fn load_patch_opt(resources: &ResourceManager, name: &str) -> Option<Arc<Patch>> {
+    let index = resources.find_lump(name)?;
+    resources
+        .decode_cached::<Patch>(index, |bytes| {
+            decode_patch(bytes).map_err(EngineError::from)
+        })
+        .ok()
 }
 
 impl MenuAssets {
@@ -108,7 +120,7 @@ impl MenuAssets {
             m_epi1: load_patch(resources, "M_EPI1")?,
             m_epi2: load_patch(resources, "M_EPI2")?,
             m_epi3: load_patch(resources, "M_EPI3")?,
-            m_epi4: load_patch(resources, "M_EPI4")?,
+            m_epi4: load_patch_opt(resources, "M_EPI4"),
             m_jkill: load_patch(resources, "M_JKILL")?,
             m_rough: load_patch(resources, "M_ROUGH")?,
             m_hurt: load_patch(resources, "M_HURT")?,
@@ -126,10 +138,10 @@ impl MenuAssets {
             m_gdlow: load_patch(resources, "M_GDLOW")?,
             m_msgoff: load_patch(resources, "M_MSGOFF")?,
             m_msgon: load_patch(resources, "M_MSGON")?,
-            help: load_patch(resources, "HELP")?,
-            help1: load_patch(resources, "HELP1")?,
-            help2: load_patch(resources, "HELP2")?,
-            credit: load_patch(resources, "CREDIT")?,
+            help: load_patch_opt(resources, "HELP"),
+            help1: load_patch_opt(resources, "HELP1"),
+            help2: load_patch_opt(resources, "HELP2"),
+            credit: load_patch_opt(resources, "CREDIT"),
             ls_left: load_patch(resources, "M_LSLEFT")?,
             ls_cntr: load_patch(resources, "M_LSCNTR")?,
             ls_rght: load_patch(resources, "M_LSRGHT")?,
@@ -142,33 +154,36 @@ impl MenuAssets {
         })
     }
 
-    fn item_patch(&self, name: &str) -> &Arc<Patch> {
+    fn item_patch(&self, name: &str) -> Option<&Arc<Patch>> {
         // every item table hands us a lump we loaded above
         match name {
-            "M_NGAME" => &self.m_ngame,
-            "M_OPTION" => &self.m_option,
-            "M_LOADG" => &self.m_loadg,
-            "M_SAVEG" => &self.m_saveg,
-            "M_RDTHIS" => &self.m_rdthis,
-            "M_QUITG" => &self.m_quitg,
-            "M_EPI1" => &self.m_epi1,
-            "M_EPI2" => &self.m_epi2,
-            "M_EPI3" => &self.m_epi3,
-            "M_EPI4" => &self.m_epi4,
-            "M_JKILL" => &self.m_jkill,
-            "M_ROUGH" => &self.m_rough,
-            "M_HURT" => &self.m_hurt,
-            "M_ULTRA" => &self.m_ultra,
-            "M_NMARE" => &self.m_nmare,
-            "M_ENDGAM" => &self.m_endgam,
-            "M_MESSG" => &self.m_messg,
-            "M_DETAIL" => &self.m_detail,
-            "M_SCRNSZ" => &self.m_scrnsz,
-            "M_MSENS" => &self.m_msens,
-            "M_SVOL" => &self.m_svolv,
-            "M_SFXVOL" => &self.m_sfxvol,
-            "M_MUSVOL" => &self.m_musvol,
-            other => unreachable!("unmapped menu item lump {other}"),
+            "M_NGAME" => Some(&self.m_ngame),
+            "M_OPTION" => Some(&self.m_option),
+            "M_LOADG" => Some(&self.m_loadg),
+            "M_SAVEG" => Some(&self.m_saveg),
+            "M_RDTHIS" => Some(&self.m_rdthis),
+            "M_QUITG" => Some(&self.m_quitg),
+            "M_EPI1" => Some(&self.m_epi1),
+            "M_EPI2" => Some(&self.m_epi2),
+            "M_EPI3" => Some(&self.m_epi3),
+            "M_EPI4" => self.m_epi4.as_ref(),
+            "M_JKILL" => Some(&self.m_jkill),
+            "M_ROUGH" => Some(&self.m_rough),
+            "M_HURT" => Some(&self.m_hurt),
+            "M_ULTRA" => Some(&self.m_ultra),
+            "M_NMARE" => Some(&self.m_nmare),
+            "M_ENDGAM" => Some(&self.m_endgam),
+            "M_MESSG" => Some(&self.m_messg),
+            "M_DETAIL" => Some(&self.m_detail),
+            "M_SCRNSZ" => Some(&self.m_scrnsz),
+            "M_MSENS" => Some(&self.m_msens),
+            "M_SVOL" => Some(&self.m_svolv),
+            "M_SFXVOL" => Some(&self.m_sfxvol),
+            "M_MUSVOL" => Some(&self.m_musvol),
+            other => {
+                tracing::warn!("unmapped menu item lump {other}; item skipped");
+                None
+            }
         }
     }
 }
@@ -281,23 +296,49 @@ fn draw_load_save(
 }
 
 fn draw_read_this(fb: &mut IndexedFramebuffer, menu: &Menu, assets: &MenuAssets) {
-    let patch = match menu.level() {
-        MenuLevel::ReadThis1 => {
-            if menu.context().gamemode == GameMode::Commercial {
-                &assets.help
-            } else {
-                &assets.help1
-            }
-        }
-        _ => {
-            // retail & commercial show CREDIT, shareware/registered HELP2
-            match menu.context().gamemode {
-                GameMode::Retail | GameMode::Commercial => &assets.credit,
-                GameMode::Shareware | GameMode::Registered => &assets.help2,
-            }
-        }
-    };
-    draw_patch(fb, patch, 0, 0);
+        let patch = match (menu.level(), menu.context().gamemode) {
+            (MenuLevel::ReadThis1, GameMode::Commercial) => [
+                &assets.help,
+                &assets.credit,
+                &assets.help2,
+                &assets.help1,
+            ]
+            .into_iter()
+            .flatten()
+            .next(),
+            (MenuLevel::ReadThis1, _) => [
+                &assets.help1,
+                &assets.help2,
+                &assets.help,
+                &assets.credit,
+            ]
+            .into_iter()
+            .flatten()
+            .next(),
+            (_, GameMode::Retail | GameMode::Commercial) => [
+                &assets.credit,
+                &assets.help2,
+                &assets.help1,
+                &assets.help,
+            ]
+            .into_iter()
+            .flatten()
+            .next(),
+            (_, _) => [
+                &assets.help2,
+                &assets.credit,
+                &assets.help1,
+                &assets.help,
+            ]
+            .into_iter()
+            .flatten()
+            .next(),
+        };
+    if let Some(patch) = patch {
+        draw_patch(fb, patch, 0, 0);
+    } else {
+        tracing::warn!("no read-this page patch available in this WAD; nothing drawn");
+    }
 }
 
 impl Menu {
@@ -368,8 +409,10 @@ impl Menu {
         let mut y = y;
         let item_column_y = y;
         for item in self.level_items() {
-            if !item.name.is_empty() {
-                draw_patch(fb, assets.item_patch(item.name), x, y);
+            if !item.name.is_empty()
+                && let Some(patch) = assets.item_patch(item.name)
+            {
+                draw_patch(fb, patch, x, y);
             }
             y += LINEHEIGHT;
         }
@@ -454,7 +497,7 @@ mod tests {
             m_epi1: p!(12),
             m_epi2: p!(13),
             m_epi3: p!(14),
-            m_epi4: p!(15),
+            m_epi4: Some(p!(15)),
             m_jkill: p!(16),
             m_rough: p!(17),
             m_hurt: p!(18),
@@ -472,10 +515,10 @@ mod tests {
             m_gdlow: p!(30),
             m_msgoff: p!(31),
             m_msgon: p!(32),
-            help: p!(33),
-            help1: p!(34),
-            help2: p!(35),
-            credit: p!(36),
+            help: Some(p!(33)),
+            help1: Some(p!(34)),
+            help2: Some(p!(35)),
+            credit: Some(p!(36)),
             ls_left: p!(37),
             ls_cntr: p!(38),
             ls_rght: p!(39),
