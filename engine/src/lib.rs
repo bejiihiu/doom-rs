@@ -33,6 +33,7 @@
 //! - `bsp` — BSP tree traversal and wall clipping.
 //! - `render` - the software renderer: framebuffer, columns, spans,
 //!   lighting, wall/plane rasterizers, sprites, masked passes and sky.
+//! - `stbar` - the status bar: widgets, layout, face state machine.
 //! - `audio` — sound effects and music playback.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
@@ -115,6 +116,15 @@ pub mod gfx;
 /// Works on raw palette indices; the palette is applied at output time
 /// only ([`render::IndexedFramebuffer::to_rgba_bytes`]).
 pub mod render;
+
+/// The status bar: the `st_stuff.c`/`st_lib.c` port.
+///
+/// [`stbar::StatusBar`] decodes the bar's patches through the resource
+/// manager once at startup; [`stbar::render_status_bar`] draws the bar
+/// into the bottom 32 rows of the framebuffer every frame, redrawing
+/// only what changed. The face (mugshot) state machine lives in
+/// [`stbar::FaceMachine`] and is driven once per tic by the game layer.
+pub mod stbar;
 
 /// BSP tree traversal and wall clipping, ported from `r_bsp.c`/`r_main.c`.
 ///
