@@ -113,9 +113,15 @@ impl PlaneProjection {
 /// `firstflat + flattranslation[picnum]`. All flats are decoded once, at
 /// build time (64x64 palette indices each; this mirrors how the texture
 /// set pre-decodes its patches).
+/// Flat namespace: flats indexed by position between `F_START`..`F_END`
+/// (the vanilla `firstflat..lastflat` slot numbering, `picnum` = slot).
+/// Marker lumps some WADs keep inside the namespace (e.g. zero-size
+/// `F1_START`/`F1_END` sentinels next to the real `F_START`/`F_END`)
+/// occupy a slot but decode to `None`; indices stay identical to the
+/// original, malformed slots are skipped at draw time with a warning.
 #[derive(Debug)]
 pub struct FlatSet {
-    flats: Vec<Flat>,
+    flats: Vec<Option<Flat>>,
     names: HashMap<String, u32>,
 }
 
@@ -142,7 +148,18 @@ impl FlatSet {
         let mut names = HashMap::with_capacity(last - first + 1);
         for (offset, index) in (first..=last).enumerate() {
             let data = resources.lump_data_index(index)?;
-            flats.push(Flat::parse(data)?);
+            match Flat::parse(data) {
+                Ok(flat) => flats.push(Some(flat)),
+                Err(e) => {
+                    let entries_name = entries[index].name.trimmed();
+                    let name = String::from_utf8_lossy(entries_name).into_owned();
+                    tracing::warn!(
+                        "flat namespace slot {offset} ({name}): not a strict 4096-byte flat ({e}); \
+                         keeping the slot, skipped when drawn"
+                    );
+                    flats.push(None);
+                }
+            }
             let name = String::from_utf8_lossy(entries[index].name.trimmed()).to_ascii_uppercase();
             names.entry(name).or_insert(offset as u32);
         }
@@ -160,9 +177,10 @@ impl FlatSet {
         self.flats.is_empty()
     }
 
-    /// The decoded flat for the namespace-relative `picnum`, if it exists.
+    /// The decoded flat for the namespace-relative `picnum`. `None` when
+    /// the slot holds a marker/malformed lump (kept for index stability).
     pub fn flat(&self, picnum: u32) -> Option<&Flat> {
-        self.flats.get(picnum as usize)
+        self.flats.get(picnum as usize).and_then(Option::as_ref)
     }
 
     /// `R_FlatNumForName`: the namespace-relative number of the flat
@@ -836,13 +854,26 @@ mod tests {
     }
 
     #[test]
-    fn flat_set_rejects_malformed_flat() {
+    fn flat_set_keeps_marker_slots_for_index_stability() {
+        // WADs sometimes keep zero-size marker lumps inside the namespace;
+        // they occupy a slot (indices stay vanilla-compatible) but decode to None
         let wad = build_wad(
             b"IWAD",
-            &[("F_START", &[]), ("BROKEN", &[0u8; 100]), ("F_END", &[])],
+            &[
+                ("F_START", &[]),
+                ("F1_START", &[]),
+                ("FLOOR1", &[0u8; 4096]),
+                ("F1_END", &[]),
+                ("F_END", &[]),
+            ],
         );
         let manager = ResourceManager::new(WadFile::from_bytes(wad).unwrap(), Vec::new());
-        assert!(FlatSet::from_resources(&manager).is_err());
+        let set = FlatSet::from_resources(&manager).unwrap();
+        assert_eq!(set.len(), 3);
+        assert_eq!(set.flat(1).unwrap().pixels()[..], [0u8; 4096]);
+        assert!(set.flat(0).is_none());
+        assert!(set.flat(2).is_none());
+        assert_eq!(set.num_for_name(b"FLOOR1\0\0"), Some(1));
     }
 
     // ------------------------------------------------------------------
