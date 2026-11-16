@@ -36,6 +36,9 @@
 //! - `stbar` - the status bar: widgets, layout, face state machine.
 //! - `hud` — the heads-up display: the message widget and the level
 //!   title, plus the ported `d_englsh.h` message strings.
+//! - `menu` — the menu system: main menu, options, load/save menus,
+//!   the quit/end-game prompts and the cheat-code matcher, ported from
+//!   `m_menu.c`/`m_cheat.c` (includes the `d_englsh.h` prompt strings).
 //! - `audio` — sound effects and music playback.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
@@ -135,6 +138,16 @@ pub mod stbar;
 /// message widget and (while the automap is up) the level title. The
 /// `d_englsh.h` player messages are ported as [`hud::HudMessage`].
 pub mod hud;
+
+/// The menu system: the `m_menu.c`/`m_cheat.c` port.
+///
+/// [`menu::Menu`] is the state machine (level, cursor, skull animation,
+/// message prompts, the save-game string editor); it renders through
+/// [`menu::MenuAssets`] into the framebuffer and reports player intent
+/// as plain-data [`menu::MenuEvent`] / [`menu::MenuSound`] values.
+/// Cheat codes go through [`menu::CheatTable`] and come out as
+/// [`menu::CheatEvent`]s.
+pub mod menu;
 
 /// BSP tree traversal and wall clipping, ported from `r_bsp.c`/`r_main.c`.
 ///
