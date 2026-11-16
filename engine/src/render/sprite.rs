@@ -51,7 +51,7 @@
 
 use crate::bsp::point_to_angle_2;
 use crate::errors::EngineError;
-use crate::fixed::{FRACBITS, Fixed};
+use crate::fixed::{FRACBITS, FRACUNIT, Fixed};
 use crate::gfx::palette::{Colormap, FUZZ_COLORMAP};
 use crate::gfx::patch::{Patch, Post, decode_patch};
 use crate::resources::ResourceManager;
@@ -62,6 +62,7 @@ use super::column::{
     ColumnParams, ColumnSource, FuzzState, UnmaskedColumn, draw_column, draw_column_low,
     draw_fuzz_column,
 };
+use super::framebuffer::SCREEN_WIDTH;
 use super::lighting::{LIGHTSCALESHIFT, MAXLIGHTSCALE};
 use super::wall::WallView;
 
@@ -1016,6 +1017,171 @@ pub fn decode_sprite_patch(
     lump: usize,
 ) -> crate::errors::EngineResult<std::sync::Arc<Patch>> {
     manager.decode_cached::<Patch>(lump, |bytes| decode_patch(bytes).map_err(EngineError::from))
+}
+
+/// Vanilla `BASEYCENTER` (`r_things.c`): the fixed vertical anchor the
+/// weapon and flash sprites hang from. Independent of `view_height` on
+/// purpose — the original draws psprites against the full 200-row
+/// screen.
+pub const BASEYCENTER: i32 = 100;
+
+/// The `FF_FULLBRIGHT` bit of a raw 16-bit `frame` field (the info
+/// tables keep the flag in the low half).
+const FF_FULLBRIGHT_U16: u16 = 0x8000;
+
+/// `R_DrawPSprite`: draws one overlay (weapon or flash) sprite.
+///
+/// `sprite` is the `SPR_*` ordinal from the info tables, `frame` is the
+/// raw `frame` field of the state (fullbright bit included, exactly
+/// like `states[].frame`), and `sx`/`sy` are the fixed-point screen
+/// coordinates the psprite layer maintains in `320*200` space.
+///
+/// Clipping is against the full view height, matching the original
+/// (psprites clip against `screenheightarray`/`negonearray`, i.e. not at
+/// all). `spritelights` is the scalelight row of the view sector; the
+/// overlay uses its `MAXLIGHTSCALE-1` entry when the state is not
+/// fullbright, like the original. Returns `true` when the sprite was at
+/// least partially on screen.
+#[allow(clippy::too_many_arguments)]
+pub fn draw_psprite(
+    fb: &mut super::framebuffer::IndexedFramebuffer,
+    sprite: usize,
+    frame: u16,
+    sx: Fixed,
+    sy: Fixed,
+    power_invisibility: i32,
+    view: &WallView<'_>,
+    defs: &SpriteDefinitions,
+    lumps: &SpriteLumpTables,
+    colormaps: &[Colormap],
+    spritelights: &[usize; MAXLIGHTSCALE],
+    manager: &ResourceManager,
+    translations: &TranslationTables,
+    fuzz: &mut FuzzState,
+) -> bool {
+    // decide which patch to use
+    let Some(sprite_def) = defs.sprite(sprite) else {
+        tracing::warn!("R_DrawPSprite: invalid sprite number {sprite}");
+        return false;
+    };
+    let frame_index = (frame & !FF_FULLBRIGHT_U16) as usize;
+    let Some(sprframe) = sprite_def.frame(frame_index) else {
+        tracing::warn!("R_DrawPSprite: invalid sprite frame {sprite}:{frame_index}");
+        return false;
+    };
+
+    let lump = sprframe.lump[0];
+    let flip = sprframe.flip[0];
+
+    // pspritescale / pspriteiscale, from R_ExecuteSetViewSize
+    let pspritescale = Fixed::from_raw(FRACUNIT * view.view_width / SCREEN_WIDTH as i32);
+    let pspriteiscale = Fixed::from_raw(FRACUNIT * SCREEN_WIDTH as i32 / view.view_width);
+
+    // calculate edges of the shape
+    let mut tx = sx - Fixed::from_raw((SCREEN_WIDTH as i32 / 2) * FRACUNIT);
+    tx -= lumps.offset(lump);
+    let raw_x1 = (view.center_x_frac + tx * pspritescale).to_raw() >> FRACBITS;
+
+    // off the right side
+    if raw_x1 > view.view_width {
+        return false;
+    }
+
+    tx += lumps.width(lump);
+    let raw_x2 = ((view.center_x_frac + tx * pspritescale).to_raw() >> FRACBITS) - 1;
+
+    // off the left side
+    if raw_x2 < 0 {
+        return false;
+    }
+
+    let x1 = raw_x1.max(0);
+    let x2 = raw_x2.min(view.view_width - 1);
+
+    let texturemid = Fixed::from_int(BASEYCENTER) + Fixed::from_raw(FRACUNIT / 2)
+        - (sy - lumps.top_offset(lump));
+
+    let scale = Fixed::from_raw(
+        pspritescale
+            .to_raw()
+            .wrapping_shl(view.detail_shift.max(0) as u32),
+    );
+    let (startfrac, xiscale) = if flip {
+        // the original stores `spritewidth[lump] - 1`, not
+        // `(width - 1) << FRACBITS` — kept 1:1
+        (
+            Fixed::from_raw(lumps.width(lump).to_raw() - 1),
+            -pspriteiscale,
+        )
+    } else {
+        (Fixed::ZERO, pspriteiscale)
+    };
+    let startfrac = if x1 > raw_x1 {
+        startfrac + xiscale * Fixed::from_int(x1 - raw_x1)
+    } else {
+        startfrac
+    };
+
+    let mobj_flags = 0; // vanilla zeroes the translation bits for psprites
+    let colormap = if power_invisibility > 4 * 32 || (power_invisibility & 8) != 0 {
+        // shadow draw
+        None
+    } else if let Some(level) = view.fixed_colormap {
+        // fixed color
+        Some(level)
+    } else if (frame & FF_FULLBRIGHT_U16) != 0 {
+        // full bright
+        Some(0)
+    } else {
+        // local light, closest entry like the original
+        Some(spritelights[MAXLIGHTSCALE - 1])
+    };
+
+    let vis = ProjectedSprite {
+        mobj_flags,
+        scale,
+        gx: Fixed::ZERO,
+        gy: Fixed::ZERO,
+        gz: Fixed::ZERO,
+        gzt: Fixed::ZERO,
+        texturemid,
+        x1,
+        x2,
+        xiscale,
+        startfrac,
+        patch: lump,
+        flip,
+        colormap,
+    };
+
+    let patch = match decode_sprite_patch(manager, lump) {
+        Ok(patch) => patch,
+        Err(err) => {
+            tracing::warn!("R_DrawPSprite: failed to decode patch for psprite: {err}");
+            return false;
+        }
+    };
+
+    // psprites never clip: full view height / neg-one, like the original
+    let view_height = view.view_height.max(0) as i16;
+    let mfloorclip = [view_height; super::framebuffer::SCREEN_WIDTH];
+    let mceilingclip = [-1i16; super::framebuffer::SCREEN_WIDTH];
+
+    draw_vis_sprite(
+        fb,
+        fuzz,
+        &vis,
+        &patch,
+        colormaps,
+        translations,
+        &mfloorclip,
+        &mceilingclip,
+        view.detail_shift,
+        view.center_y,
+        view.center_y_frac,
+        view.view_height,
+    );
+    true
 }
 
 #[cfg(test)]

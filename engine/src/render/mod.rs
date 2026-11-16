@@ -54,9 +54,10 @@ pub use planes::{MAX_VISPLANES, PlaneSet, Visplane};
 pub use sky::{ANGLETOSKYSHIFT, SKY_TEXTURE_MID, SkyReport, render_sky};
 pub use span::{SpanParams, draw_span, draw_span_low};
 pub use sprite::{
-    FF_FRAMEMASK, FF_FULLBRIGHT, MAX_VIS_SPRITES, MF_SHADOW, MF_TRANSLATION, MF_TRANSSHIFT,
-    ProjectedSprite, Sprite, SpriteDefinitions, SpriteError, SpriteFrame, SpriteLumpTables,
-    SpriteThing, TranslationTables, decode_sprite_patch, project_sprite, sort_vissprites,
+    BASEYCENTER, FF_FRAMEMASK, FF_FULLBRIGHT, MAX_VIS_SPRITES, MF_SHADOW, MF_TRANSLATION,
+    MF_TRANSSHIFT, ProjectedSprite, Sprite, SpriteDefinitions, SpriteError, SpriteFrame,
+    SpriteLumpTables, SpriteThing, TranslationTables, decode_sprite_patch, draw_psprite,
+    project_sprite, sort_vissprites,
 };
 pub use textures::{TextureColumn, TexturePixels, TextureRun, TextureSet, build_texture_pixels};
 pub use wall::{
