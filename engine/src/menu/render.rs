@@ -296,44 +296,28 @@ fn draw_load_save(
 }
 
 fn draw_read_this(fb: &mut IndexedFramebuffer, menu: &Menu, assets: &MenuAssets) {
-        let patch = match (menu.level(), menu.context().gamemode) {
-            (MenuLevel::ReadThis1, GameMode::Commercial) => [
-                &assets.help,
-                &assets.credit,
-                &assets.help2,
-                &assets.help1,
-            ]
+    let patch = match (menu.level(), menu.context().gamemode) {
+        (MenuLevel::ReadThis1, GameMode::Commercial) => {
+            [&assets.help, &assets.credit, &assets.help2, &assets.help1]
+                .into_iter()
+                .flatten()
+                .next()
+        }
+        (MenuLevel::ReadThis1, _) => [&assets.help1, &assets.help2, &assets.help, &assets.credit]
             .into_iter()
             .flatten()
             .next(),
-            (MenuLevel::ReadThis1, _) => [
-                &assets.help1,
-                &assets.help2,
-                &assets.help,
-                &assets.credit,
-            ]
+        (_, GameMode::Retail | GameMode::Commercial) => {
+            [&assets.credit, &assets.help2, &assets.help1, &assets.help]
+                .into_iter()
+                .flatten()
+                .next()
+        }
+        (_, _) => [&assets.help2, &assets.credit, &assets.help1, &assets.help]
             .into_iter()
             .flatten()
             .next(),
-            (_, GameMode::Retail | GameMode::Commercial) => [
-                &assets.credit,
-                &assets.help2,
-                &assets.help1,
-                &assets.help,
-            ]
-            .into_iter()
-            .flatten()
-            .next(),
-            (_, _) => [
-                &assets.help2,
-                &assets.credit,
-                &assets.help1,
-                &assets.help,
-            ]
-            .into_iter()
-            .flatten()
-            .next(),
-        };
+    };
     if let Some(patch) = patch {
         draw_patch(fb, patch, 0, 0);
     } else {

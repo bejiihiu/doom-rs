@@ -52,10 +52,7 @@ fn overlay_draws_a_black_band_over_the_top_of_the_frame() {
 
     run_tics(&mut game, &TicCmdInput::NONE, 150, &mut fb);
     assert!(
-        fb.row(2)
-            .expect("row in range")
-            .iter()
-            .any(|&px| px != 0),
+        fb.row(2).expect("row in range").iter().any(|&px| px != 0),
         "expected a rendered view in the top rows before the overlay"
     );
 

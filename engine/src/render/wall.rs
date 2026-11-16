@@ -1146,8 +1146,7 @@ impl<'v, 'fb> WallFrame<'v, 'fb> {
                 // tangent is periodic with pi (FINEANGLES/2 entries);
                 // vanilla reads past the table here, we wrap instead
                 let tangent = FINE_TANGENT[angle % FINE_TANGENT.len()];
-                let texturecolumn =
-                    (rw.rw_offset - tangent * rw.rw_distance).to_raw() >> FRACBITS;
+                let texturecolumn = (rw.rw_offset - tangent * rw.rw_distance).to_raw() >> FRACBITS;
                 let light = self.light_colormap_index(rw.light_row, rw.rw_scale);
                 let iscale =
                     Fixed::from_raw((0xffff_ffffu32 / (rw.rw_scale.to_raw() as u32)) as i32);
