@@ -51,6 +51,16 @@
 //!   count-up, the episode world map with the "You Are Here" pointer,
 //!   the deathmatch matrix and the animated backgrounds, ported from
 //!   `wi_stuff.c`.
+//! - `thinker` - the vanilla thinker registry: the THINKERS list from
+//!   `p_tick.c`/`d_think.h` re-engineered as a generational arena, with
+//!   vanilla's insertion-order execution and lazy removal semantics.
+//! - `mobj` - game objects: the `mobj_t` from `p_mobj.h`, its spawning
+//!   from `p_mobj.c` (`P_SpawnMobj`/`P_SpawnMapThing`/`P_RemoveMobj`/
+//!   `P_SetMobjState`), the item respawn queue and the sector/blockmap
+//!   thing lists.
+//! - `player` - the per-player state: `player_t` from `d_player.h`
+//!   (plus the `ticcmd_t` from `d_ticcmd.h`) and its weapon/ammo/key/
+//!   power enumerations.
 //! - `info` - the game data tables the gameplay layer drives: `states[]`,
 //!   `mobjinfo[]`, `sprnames`, `S_sfx[]`/`S_music[]` and the switch
 //!   on/off texture pairs, ported from `info.c`/`sounds.c`/`p_switch.c`.
@@ -198,6 +208,28 @@ pub mod finale;
 /// through the resource manager at start; everything the game layer
 /// must do comes out as [`intermission::IntermissionEvent`]s.
 pub mod intermission;
+
+/// Game objects: the `mobj_t` from `p_mobj.h` and the spawn/lifecycle
+/// half of `p_mobj.c`.
+///
+/// [`mobj::MobjStore`] owns the thinker registry and the runtime thing
+/// lists (per sector / per blockmap cell) and spawns map things from
+/// THINGS data; [`mobj::Mobj`] is the actor every gameplay object is.
+pub mod mobj;
+
+/// The thinker registry: the vanilla THINKERS list from `p_tick.c`.
+///
+/// Thinkers are stored in a generational arena and run in insertion
+/// order with vanilla's lazy removal semantics; new thinker kinds are
+/// added as variants of [`thinker::Thinker`].
+pub mod thinker;
+
+/// The per-player state: `player_t` from `d_player.h`.
+///
+/// The avatar itself is a regular [`mobj::Mobj`] of type `MT_PLAYER`;
+/// [`player::Player`] carries view state, inventory, cheats and the
+/// overlay psprites.
+pub mod player;
 
 /// Game data tables, ported from `info.c`/`info.h`, `sounds.c`/`sounds.h`
 /// and `p_switch.c`.
