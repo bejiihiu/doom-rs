@@ -47,10 +47,13 @@
 //! - `finale` — the end-of-episode finale: typed-out texts, the art
 //!   screens (including the E3 bunny scroll) and the DOOM II MAP30
 //!   cast call, ported from `f_finale.c`.
-//! - `intermission` — the between-maps stat screen: the interactive
+//! - `intermission` - the between-maps stat screen: the interactive
 //!   count-up, the episode world map with the "You Are Here" pointer,
 //!   the deathmatch matrix and the animated backgrounds, ported from
 //!   `wi_stuff.c`.
+//! - `info` - the game data tables the gameplay layer drives: `states[]`,
+//!   `mobjinfo[]`, `sprnames`, `S_sfx[]`/`S_music[]` and the switch
+//!   on/off texture pairs, ported from `info.c`/`sounds.c`/`p_switch.c`.
 //! - `audio` — sound effects and music playback.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
@@ -195,6 +198,15 @@ pub mod finale;
 /// through the resource manager at start; everything the game layer
 /// must do comes out as [`intermission::IntermissionEvent`]s.
 pub mod intermission;
+
+/// Game data tables, ported from `info.c`/`info.h`, `sounds.c`/`sounds.h`
+/// and `p_switch.c`.
+///
+/// The `states[]` table, `mobjinfo[]` table, `sprnames[]`, the `S_sfx[]` /
+/// `S_music[]` tables and the switch on/off texture pairs the gameplay
+/// layer drives live here. Everything is plain static data keyed by
+/// `#[repr(u16)]` enums mirroring the vanilla enum values.
+pub mod info;
 
 /// BSP tree traversal and wall clipping, ported from `r_bsp.c`/`r_main.c`.
 ///
