@@ -12,7 +12,7 @@
 //! layer); a shot that hits a special line emits
 //! [`GameEvent::ShootSpecial`] so the specials layer decides what it does.
 //!
-//! The puff/blood spawners take a [`PuffParts`] bundle — the exact long
+//! The puff/blood spawners take a `PuffParts` bundle — the exact long
 //! list of borrows they need — so they work both from a full
 //! [`EnemyContext`] (outside any traversal) and from a raw
 //! [`MoveContext`] (inside one).

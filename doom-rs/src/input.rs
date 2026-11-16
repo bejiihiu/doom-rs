@@ -1,7 +1,7 @@
 //! Input mapping: OS-level keys/buttons down to Doom key codes.
 //!
 //! The engine keeps one `gamekeydown[256]` array indexed by Doom key
-//! codes (`doomdef.h`) and merges it with the per-tic [`TicCmdInput`].
+//! codes (`doomdef.h`) and merges it with the per-tic [`doom_engine::game::TicCmdInput`].
 //! The platform's job is to translate winit's physical-key events into
 //! those codes without reinterpreting the user's bindings.
 //!

@@ -9,7 +9,7 @@
 //! fallback (axis-aligned partial move) gives up.
 //!
 //! The original kept `bestslidefrac`/`bestslideline` (and a never-read
-//! `secondslide*` pair) in file scope; here they live in [`SlideState`],
+//! `secondslide*` pair) in file scope; here they live in `SlideState`,
 //! created fresh per call. The vestigial second-best tracking is dropped
 //! (nothing in linuxdoom-1.10 ever reads it).
 

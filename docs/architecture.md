@@ -15,24 +15,22 @@ is expected to land incrementally and converge to this shape.
 ## 1. Repository and workspace layout
 
 Virtual Cargo workspace at the repository root. There is no root package;
-everything lives in `crates/`.
+members live flat at the top level.
 
 ```
-C:\doom\DoomInRust
+doominrust
 ├── Cargo.toml              # virtual workspace manifest, resolver = "3"
-├── crates/
-│   ├── engine/             # doom-engine: the engine as a library (lib name: doom_engine)
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   ├── doom-rs/            # doom-rs: the runnable binary (thin shell)
-│   │   ├── Cargo.toml
-│   │   └── src/main.rs
-│   └── tools/
-│       ├── wad-inspector/  # CLI: dump WAD directory, validate lumps
-│       ├── asset-inspector/# CLI: render PLAYPAL/patches/flats/sprites to PNG
-│       └── demo-analyzer/  # CLI: parse .lmp demo files, dump ticcmds
-├── docs/
-└── engine/ ...             # (no engine code at repo root)
+├── engine/                 # doom-engine: the engine as a library (lib name: doom_engine)
+│   ├── Cargo.toml
+│   └── src/
+├── doom-rs/                # doom-rs: the runnable binary (thin shell)
+│   ├── Cargo.toml
+│   └── src/                # main.rs, app.rs, input.rs, audio.rs
+├── tools/
+│   ├── wad-inspector/      # CLI: dump WAD directory, validate lumps
+│   ├── asset-inspector/    # CLI: render PLAYPAL/patches/flats/sprites to PNG
+│   └── demo-analyzer/      # CLI: parse .lmp demo files, dump ticcmds
+└── docs/
 ```
 
 Rationale:
@@ -451,8 +449,9 @@ MouseButton/Wheel/Joystick*`. The DOOM key model (`KEY_*`: arrows at
 
 **Decided**
 
-- Workspace: virtual workspace, `crates/engine` (lib `doom_engine`), `crates/doom-rs`
-  (bin), `crates/tools/*`. No root package.
+- Workspace: virtual workspace — `engine/` (lib `doom_engine`),
+  `doom-rs/` (bin), `tools/{wad-inspector,asset-inspector,demo-analyzer}`.
+  No root package. Flat member layout (not `crates/`), per the original scaffold.
 - `winit` + `softbuffer` for window/present. No GPU dependency; matches the
   320×200 paletted framebuffer model exactly. (Alternative considered: `pixels`;
   rejected — adds wgpu for no benefit at this resolution.)
@@ -493,7 +492,8 @@ MouseButton/Wheel/Joystick*`. The DOOM key model (`KEY_*`: arrows at
 
 ## 15. Build, code, and hygiene rules
 
-- Edition 2021+, stable toolchain, `rust-toolchain.toml` pinned.
+- Edition 2024, stable toolchain, `rust-toolchain.toml` selects stable with
+  rustfmt and clippy.
 - `cargo fmt` + `clippy -- -D warnings` clean; CI on win/linux/mac.
 - No `unsafe` without a documented reason and tests.
 - Comments in code are informal English, human; user-facing strings are

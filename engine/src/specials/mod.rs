@@ -7,13 +7,13 @@
 //!
 //! Vanilla keeps all of these in the single THINKERS list and runs them in
 //! insertion order. Here that stays the same: the special thinkers are
-//! [`Thinker`] variants in the same registry the mobjs live in, and
-//! [`run_thinkers`] walks the list once per tic, dispatching the special
+//! [`crate::thinker::Thinker`] variants in the same registry the mobjs live in, and
+//! [`crate::specials::run_thinkers`] walks the list once per tic, dispatching the special
 //! variants and ignoring the mobj ones (the game loop drives those).
 //!
 //! Thinkers spawned by gameplay code (a door triggered by a switch) cannot
 //! be added to the registry from outside a pass — the registry belongs to
-//! the store. They are queued in [`SpecialContext::pending_thinkers`] and
+//! the store. They are queued in [`crate::specials::SpecialContext::pending_thinkers`] and
 //! appended at the tail before the next pass walks the list, mirroring
 //! vanilla's `P_AddThinker` during `P_PlayerThink` running inside the
 //! same tic's `P_RunThinkers`. Mutations of an existing thinker from
@@ -25,13 +25,13 @@
 //! * The animated flats/textures tables (`animdefs`/`texturetranslation`)
 //!   — they feed the render layer's translation tables, which owns them.
 //! * The world-tic damage plumbing for sector specials (5/7/16/4/11) is
-//!   here as [`lineactions::player_in_special_sector`], but the actual
+//!   here as [`crate::specials::lineactions::player_in_special_sector`], but the actual
 //!   damage application is the game loop's (via the events channel).
 //!
 //! ## Not-quite-vanilla notes
 //!
 //! * Sounds and damage are plain-data events
-//!   ([`SpecialEvent`]) instead of calls into audio/inter code. The game
+//!   ([`crate::specials::SpecialEvent`]) instead of calls into audio/inter code. The game
 //!   loop routes them. RNG consumption order differs from vanilla in the
 //!   crush path only: the blood-spray momentum is rolled here (2 calls) but
 //!   the pain roll of `P_DamageMobj` happens in the damage dispatch.
@@ -49,7 +49,7 @@
 //!   together) are not a linuxdoom-1.10 feature at all — there is no tag
 //!   fan-out for wall textures in the original. What vanilla does fan out
 //!   is the *sector* tag on door actions (`P_FindSectorFromLineTag`), and
-//!   that is kept. [`SpecialEvent::SwitchToggled`] carries the line index
+//!   that is kept. [`crate::specials::SpecialEvent::SwitchToggled`] carries the line index
 //!   and tag so a compatible "linked switch" layer can be added later
 //!   without changing this module.
 
@@ -252,7 +252,7 @@ pub struct SpecialContext<'a> {
 
 /// A mutation of an existing thinker, queued from outside the pass because
 /// the registry is not reachable there. Applied at the start of the next
-/// [`run_thinkers`] walk.
+/// [`crate::specials::run_thinkers`] walk.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum SpecialCommand {
     /// Vanilla manual-door re-trigger: flip a sector's door direction
@@ -322,7 +322,7 @@ pub(crate) struct PassCtx<'a> {
 /// per-tic step, in list order. Mobjs are left alone — the game loop runs
 /// those through its own dispatch.
 ///
-/// Thinkers queued in [`SpecialContext::pending_thinkers`] are appended at
+/// Thinkers queued in [`crate::specials::SpecialContext::pending_thinkers`] are appended at
 /// the tail of the registry and commands from the queue (the manual door
 /// flip) are applied before any thinker runs — like vanilla's
 /// `P_PlayerThink` doing its spawns/flips before `P_RunThinkers` walks the

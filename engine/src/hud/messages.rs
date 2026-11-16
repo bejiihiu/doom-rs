@@ -350,7 +350,7 @@ pub const CHAT_MACROS: [&str; 10] = [
 ];
 
 /// Net-game player names, indexed by player number (`player_names[]`,
-/// `HUSTR_PLRGREEN` etc.), for "<name>: <chat text>" messages.
+/// `HUSTR_PLRGREEN` etc.), for "`<name>: <chat text>`" messages.
 pub const PLAYER_NAMES: [&str; 4] = [
     "Green: ",  // HUSTR_PLRGREEN
     "Indigo: ", // HUSTR_PLRINDIGO

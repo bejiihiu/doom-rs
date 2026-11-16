@@ -11,7 +11,7 @@
 //! and the movement/combat code, which need `P_XYMovement`/`P_ZMovement`)
 //! and `P_KillMobj` (its interaction with the intermission stats and the
 //! nightmare-respawn machinery is the combat pass). The state machine
-//! itself ([`MobjStore::set_mobj_state`]) is ported, including the
+//! itself ([`crate::mobj::MobjStore::set_mobj_state`]) is ported, including the
 //! zero-tic chain and the `S_NULL` teardown.
 //!
 //! ## Where vanilla kept things elsewhere
@@ -31,7 +31,7 @@
 //!   the *same* mobj do so on nested calls (e.g. via `P_DamageMobj`), so
 //!   deferring whole-chain reports changes nothing observable here.
 //! - Vanilla indices into `mobjinfo[]` with an unbounded `int`; here
-//!   [`MobjType`] is a `#[repr(u16)]` enum and the doomednum → type lookup
+//!   [`crate::info::MobjType`] is a `#[repr(u16)]` enum and the doomednum → type lookup
 //!   is bounds-checked.
 //! - Vanilla `I_Error`-aborts on an unknown thing type. We log a warning
 //!   and skip the thing instead, so one bad THINGS lump cannot take the
@@ -211,7 +211,7 @@ pub struct RemoveMobjReport {
     pub respawn_queued: bool,
 }
 
-/// Result of [`MobjStore::set_mobj_state`].
+/// Result of [`crate::mobj::MobjStore::set_mobj_state`].
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SetMobjStateReport {
     /// False when the state chain hit `S_NULL` and the mobj removed

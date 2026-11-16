@@ -1,6 +1,6 @@
 //! Logging setup for the engine.
 //!
-//! One call to [`init_logging`] installs a compact `tracing` subscriber on
+//! One call to [`crate::log::init_logging`] installs a compact `tracing` subscriber on
 //! the global default. The filter comes from the `RUST_LOG` environment
 //! variable and falls back to `info` when it is missing or invalid. No file
 //! output — the terminal is the log.

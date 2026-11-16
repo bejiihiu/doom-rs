@@ -1143,12 +1143,11 @@ impl<'v, 'fb> WallFrame<'v, 'fb> {
                     break;
                 }
                 let angle = (rw.rw_centerangle + self.view.projection.at(x)).fine_angle();
-                debug_assert!(
-                    angle < FINE_TANGENT.len(),
-                    "fine tangent index out of range"
-                );
+                // tangent is periodic with pi (FINEANGLES/2 entries);
+                // vanilla reads past the table here, we wrap instead
+                let tangent = FINE_TANGENT[angle % FINE_TANGENT.len()];
                 let texturecolumn =
-                    (rw.rw_offset - FINE_TANGENT[angle] * rw.rw_distance).to_raw() >> FRACBITS;
+                    (rw.rw_offset - tangent * rw.rw_distance).to_raw() >> FRACBITS;
                 let light = self.light_colormap_index(rw.light_row, rw.rw_scale);
                 let iscale =
                     Fixed::from_raw((0xffff_ffffu32 / (rw.rw_scale.to_raw() as u32)) as i32);
@@ -2073,7 +2072,9 @@ mod tests {
         let mut drawn = 0;
         for x in 0..VIEW_WIDTH {
             let angle = (rw_centerangle + kit.projection.at(x)).fine_angle();
-            let texcol = (rw_offset - FINE_TANGENT[angle] * rw_distance).to_raw() >> FRACBITS;
+            let texcol = (rw_offset - FINE_TANGENT[angle % FINE_TANGENT.len()] * rw_distance)
+                .to_raw()
+                >> FRACBITS;
             let expected = texcol.rem_euclid(128) as u8;
             // count drawn pixels in this column and check they all equal the
             // stripe value for that column

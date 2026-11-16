@@ -14,27 +14,27 @@
 //!   (`P_PlayerThink`), the level-exit flow and the platform-facing API
 //!   ([`game::Game::new`], [`game::Game::tick_input`],
 //!   [`game::Game::advance`], [`game::Game::should_quit`]).
-//! - [`hooks`] - the `NetGameHooks` seam: the glue that lets the net
+//! - `hooks` - the `NetGameHooks` seam: the glue that lets the net
 //!   tic governor (`net::try_run_tics`) drive the world without `d_net.c`
 //!   reaching into globals.
-//! - [`input`] - player input and the `G_BuildTiccmd` port
-//!   ([`input::TicCmdInput`] in, [`player::TicCmd`] out).
+//! - `input` - player input and the `G_BuildTiccmd` port
+//!   ([`crate::game::TicCmdInput`] in, [`player::TicCmd`] out).
 //! - [`render`] - the single frame assembly: the BSP/wall pass, planes,
 //!   sky, the sprite/masked pass, the weapon overlay, the status bar, the
 //!   HUD, the automap and the menu, in vanilla order.
-//! - [`demo`] - the `.lmp` demo format: recording, playback, the marker
-//!   byte and the header ([`demo::DemoPlayback`] / [`demo::DemoRecording`]).
-//! - [`savegame`] - the `p_saveg.c` port: serialization of the world
+//! - `demo` - the `.lmp` demo format: recording, playback, the marker
+//!   byte and the header ([`crate::game::DemoPlayback`] / [`crate::game::DemoRecording`]).
+//! - `savegame` - the `p_saveg.c` port: serialization of the world
 //!   state into a self-contained byte block and back, with checks on the
-//!   way in ([`savegame::SaveBlock`]).
-//! - [`finale_tables`] - the `CastTables` implementation over the ported
+//!   way in ([`crate::game::SaveBlock`]).
+//! - `finale_tables` - the `CastTables` implementation over the ported
 //!   info tables, for the DOOM II MAP30 cast call.
 //!
 //! What is deliberately absent: a windowing or input backend (platform
-//! shells feed [`input::TicCmdInput`] and friends), and any `winit`
+//! shells feed [`crate::game::TicCmdInput`] and friends), and any `winit`
 //! dependency - everything here is testable headless. Networked play
 //! enters through `-net` and the `net` module; the tic governor drives
-//! this module through [`hooks`].
+//! this module through `hooks`.
 
 mod demo;
 mod finale_tables;

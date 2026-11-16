@@ -15,7 +15,7 @@
 //!   (`epsd0/1/2animinfo`, including the `ANIM_LEVEL` hack that freezes
 //!   the E2-next-level-8 animation while stats are being counted);
 //! * **the end-of-screen wait** (`NoState`) and the
-//!   world-done hand-off, reported as [`IntermissionEvent::WorldDone`].
+//!   world-done hand-off, reported as [`crate::intermission::IntermissionEvent::WorldDone`].
 //!
 //! Deliberately not ported:
 //!

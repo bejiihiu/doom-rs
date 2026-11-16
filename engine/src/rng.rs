@@ -6,10 +6,10 @@
 //! (wrapping at 256) and hands out the table entry it lands on, so the
 //! sequence is fully deterministic and identical to the original game's.
 //!
-//! The state lives in [`DoomRng`] instead of the original's global `rndindex`
+//! The state lives in [`crate::rng::DoomRng`] instead of the original's global `rndindex`
 //! globals, so the engine can own (and later clone, e.g. for demos or net
 //! sync) as many independent generators as it needs. All instances created
-//! with [`DoomRng::new`] start from the exact vanilla state: index 0, same
+//! with [`crate::rng::DoomRng::new`] start from the exact vanilla state: index 0, same
 //! table.
 
 /// The fixed 256-byte table from the original `m_random.c`.
@@ -73,7 +73,7 @@ impl DoomRng {
     /// Advances the index and returns the next table byte.
     ///
     /// Mirrors the original `P_Random`/`M_Random`: the index is bumped
-    /// *before* the lookup, so the first call on a fresh [`DoomRng::new`]
+    /// *before* the lookup, so the first call on a fresh [`crate::rng::DoomRng::new`]
     /// returns `RND_TABLE[1]` (8), exactly like vanilla. Values cycle with a
     /// period of 256 forever.
     // Same name the original engine uses; the Iterator signature doesn't fit

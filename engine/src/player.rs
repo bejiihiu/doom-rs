@@ -2,7 +2,7 @@
 //! `ticcmd_t` from `d_ticcmd.h`) plus the small enums it leans on.
 //!
 //! A player avatar is a regular [`crate::mobj::Mobj`] just like a monster,
-//! with `mobj_type == MobjType::MT_PLAYER`; the linked [`Player`] carries
+//! with `mobj_type == MobjType::MT_PLAYER`; the linked [`crate::player::Player`] carries
 //! the rest (view position, inventory, cheats, psprites, ...). The link is
 //! by index both ways: the avatar stores its player index in
 //! `mobj.player`, the player stores the avatar's handle in `mo`.

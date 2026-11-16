@@ -21,7 +21,7 @@
 //! ## What the registry does differently
 //!
 //! No `Z_Malloc`/`Z_Free`, no function pointers, no raw list surgery.
-//! Thinkers live in a dense slot arena keyed by a generational [`ThinkerId`]
+//! Thinkers live in a dense slot arena keyed by a generational [`crate::thinker::ThinkerId`]
 //! (index + generation, like slotmap). Stale handles can never alias a
 //! recycled slot: freeing bumps the slot's generation. The vanilla
 //! "list" is an explicit `order` vector holding the live handles; removing
@@ -29,8 +29,8 @@
 //! DOOM's scale (tens of thinkers per level) and free of unsafe pointer
 //! fixups.
 //!
-//! Removal goes through [`ThinkerRegistry::remove`] (the vanilla lazy
-//! flag) or is swept inside [`ThinkerRegistry::run`] at the flagged
+//! Removal goes through [`crate::thinker::ThinkerRegistry::remove`] (the vanilla lazy
+//! flag) or is swept inside [`crate::thinker::ThinkerRegistry::run`] at the flagged
 //! thinker's turn - exactly like the original unlinking in `P_RunThinkers`.
 //! A thinker that flags itself for removal is dropped right after its own
 //! turn, not re-executed.
@@ -40,7 +40,7 @@
 //! Vanilla keeps mobjs, plats, doors, crushers and light strobing in one
 //! list, and the interleaving of those kinds is observable (a missile and
 //! a door think in the same tick, in list order). To preserve that
-//! forever, thinkers are stored as the [`Thinker`] enum and new kinds are
+//! forever, thinkers are stored as the [`crate::thinker::Thinker`] enum and new kinds are
 //! added as variants; there is exactly one ordered list.
 
 use std::fmt;
@@ -123,7 +123,7 @@ struct Slot {
     generation: u32,
     value: Option<Thinker>,
     /// The vanilla `function.acv == (actionf_v)(-1)` poison flag: set by
-    /// [`ThinkerRegistry::remove`], acted on at the thinker's turn.
+    /// [`crate::thinker::ThinkerRegistry::remove`], acted on at the thinker's turn.
     removed: bool,
 }
 
@@ -140,8 +140,8 @@ impl fmt::Debug for Slot {
 /// The vanilla THINKERS list.
 ///
 /// Thinkers are added with [`ThinkerRegistry::add`] (appends at the end,
-/// like `P_AddThinker`), removed with [`ThinkerRegistry::remove`] (the
-/// lazy `-1` flag), executed with [`ThinkerRegistry::run`] (like
+/// like `P_AddThinker`), removed with [`crate::thinker::ThinkerRegistry::remove`] (the
+/// lazy `-1` flag), executed with [`crate::thinker::ThinkerRegistry::run`] (like
 /// `P_RunThinkers`) and swept lazily at their own turn.
 #[derive(Debug, Default)]
 pub struct ThinkerRegistry {
@@ -161,7 +161,7 @@ impl ThinkerRegistry {
     /// Adds a thinker at the end of the list and returns its handle.
     ///
     /// Mirrors `P_AddThinker`, which appends at the tail; execution order
-    /// in [`ThinkerRegistry::run`] is therefore insertion order.
+    /// in [`crate::thinker::ThinkerRegistry::run`] is therefore insertion order.
     pub fn add(&mut self, thinker: Thinker) -> ThinkerId {
         let index = match self.free.pop() {
             Some(index) => {
@@ -238,7 +238,7 @@ impl ThinkerRegistry {
     /// Flags a thinker for removal (vanilla `P_RemoveThinker`).
     ///
     /// Nothing is unlinked or freed here; the thinker is collected at its
-    /// turn in the next [`ThinkerRegistry::run`] call. Unknown or stale
+    /// turn in the next [`crate::thinker::ThinkerRegistry::run`] call. Unknown or stale
     /// handles are ignored with a warning instead of corrupting memory.
     pub fn remove(&mut self, id: ThinkerId) {
         match self.slots.get_mut(id.index as usize) {

@@ -1,7 +1,7 @@
 //! Output backends for the mixer.
 //!
 //! Two backends share the exact same per-callback mixing path
-//! ([`fill_buffer`]):
+//! (`fill_buffer`):
 //!
 //! - [`CpalOutput`] opens the default output device (via cpal) and plays
 //!   the mixer continuously. Not exercised by the test suite; a manual
@@ -24,7 +24,7 @@ use super::s_sound::SharedMixer;
 ///
 /// The device's default configuration drives the sample rate (no forced
 /// rate) and the channel count (typically 2; mono downmix and 5.1-style
-/// >stereo layouts are handled by [`fill_buffer`]).
+/// >stereo layouts are handled by `fill_buffer`).
 ///
 /// # Errors
 ///
@@ -203,7 +203,7 @@ fn fill_buffer<T: SizedSample>(
 ///
 /// Drives the shared mixer on demand and records how often the "device
 /// callback" ran; it never touches real hardware. The mixing path it uses
-/// is the same [`fill_buffer`] cpal calls into, so tests exercise the real
+/// is the same `fill_buffer` cpal calls into, so tests exercise the real
 /// audio output code, not a reimplementation.
 #[derive(Debug)]
 pub struct NullOutput {

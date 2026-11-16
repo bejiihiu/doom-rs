@@ -1,6 +1,6 @@
 //! WAD archive handling, ported from `w_wad.c`.
 //!
-//! IWADs and PWADs parsed by [`WadFile`] are stacked by [`WadSet`] into one
+//! IWADs and PWADs parsed by [`crate::wad::WadFile`] are stacked by [`crate::wad::WadSet`] into one
 //! global lump namespace. Names are normalized (ASCII uppercase, NUL-padded)
 //! at load, duplicates are allowed, and lookups scan from the end of the
 //! directory so later files override earlier ones — the vanilla rule.
@@ -8,7 +8,7 @@
 //! Lump data is served as slices into the owning buffers; nothing is copied
 //! out. All offsets and sizes are validated at parse time with checked
 //! arithmetic, so a malformed archive is rejected with a descriptive
-//! [`WadError`] instead of a panic or out-of-bounds read.
+//! [`crate::wad::WadError`] instead of a panic or out-of-bounds read.
 //!
 //! ```no_run
 //! use doom_engine::wad::{WadFile, WadSet};

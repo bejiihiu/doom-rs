@@ -4,38 +4,38 @@
 //! (mixing), plus a cpal output backend and a WAD-lump decoder for the
 //! DMX digitized sound format. Module map:
 //!
-//! - [`dmx`] - DMX sound lump decoder: format tag 3, 8-bit unsigned PCM at
+//! - `dmx` - DMX sound lump decoder: format tag 3, 8-bit unsigned PCM at
 //!   the rate stored in the header (almost always 11025 Hz), decoded to
 //!   centered 16-bit samples. Both the officially padded layout and the
 //!   naive unpadded one are accepted.
-//! - [`mixer`] - the mixing core: a fixed set of mono slots mixed down to
+//! - `mixer` - the mixing core: a fixed set of mono slots mixed down to
 //!   stereo, the vanilla `x^2` separation law, `0..=127` volume range,
 //!   clamping sums, and rate-agnostic stepping with linear interpolation on
 //!   the resample path (bit-exact at the native 11025 Hz rate).
-//! - [`s_sound`] - the game-side model: channel allocation with priority
+//! - `s_sound` - the game-side model: channel allocation with priority
 //!   eviction (`S_getChannel`), distance attenuation and stereo separation
 //!   (`S_AdjustSoundParams`), per-tic pruning (`S_UpdateSounds`), singularity
 //!   handling and the chainsaw restart set.
-//! - [`bank`] - sound lump loading/caching, vanilla's pre-cache pass.
-//! - [`backend`] - output backends: [`backend::CpalOutput`] (default
-//!   device, real playback) and [`backend::NullOutput`] (in-memory, drives
+//! - `bank` - sound lump loading/caching, vanilla's pre-cache pass.
+//! - `backend` - output backends: [`crate::audio::CpalOutput`] (default
+//!   device, real playback) and [`crate::audio::NullOutput`] (in-memory, drives
 //!   the mixer on demand; used by tests). Both share the same
 //!   `fill_buffer` path.
-//! - [`error`] - [`AudioError`], structured decode errors plus cpal/engine
+//! - `error` - [`crate::audio::AudioError`], structured decode errors plus cpal/engine
 //!   passthroughs.
 //!
 //! ## Architecture notes
 //!
-//! - No global state; everything hangs off [`SoundEngine`]. The backend
-//!   and the engine share the mixer through [`SharedMixer`].
+//! - No global state; everything hangs off [`crate::audio::SoundEngine`]. The backend
+//!   and the engine share the mixer through [`crate::audio::SharedMixer`].
 //! - The engine side is single-threaded and runs at game-tic rate; the
 //!   audio callback thread only touches the mixer (short lock) and never
 //!   calls back into game code. A fully decoupled audio thread (lock-free
 //!   command queue) is a possible later evolution, not a requirement yet.
 //! - The engine never panics on a poisoned mixer lock; it logs and
 //!   continues (silence beats a deadlocked game).
-//! - Doom logic interacts through plain data: [`SoundOrigin`] /
-//!   [`Listener`] are built from the mobj the sound starts at (identity =
+//! - Doom logic interacts through plain data: [`crate::audio::SoundOrigin`] /
+//!   [`crate::audio::Listener`] are built from the mobj the sound starts at (identity =
 //!   `id`, e.g. thinker index<<32|generation packed by the caller).
 //!
 //! ```no_run

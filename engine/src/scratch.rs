@@ -15,11 +15,11 @@
 //! Atomicity only holds on a single filesystem, so the scratch file must
 //! live next to the target, not in a global temp dir. Every scratch root
 //! therefore sits in a dedicated `.doom-rs-scratch` directory inside the
-//! target's parent (see [`SCRATCH_DIR_NAME`]), and `cachegirl` fills it
+//! target's parent (see [`crate::scratch::SCRATCH_DIR_NAME`]), and `cachegirl` fills it
 //! with `<root>/<instance>/<namespace>/<name>` entries.
 //!
-//! Crash recovery runs on every open ([`ScratchDir::open`] /
-//! [`atomic_write`] / [`sweep_stale`]): stale instance directories left
+//! Crash recovery runs on every open ([`crate::scratch::ScratchDir::open`] /
+//! [`crate::scratch::atomic_write`] / [`crate::scratch::sweep_stale`]): stale instance directories left
 //! by crashed runs are reclaimed before anything new is created, so
 //! debris from a half-finished write does not pile up.
 //!
@@ -38,7 +38,7 @@ use crate::errors::{EngineError, EngineResult};
 /// Directory name used for scratch data next to a target file.
 ///
 /// Lives directly under the target's parent so `rename` in
-/// [`atomic_write`] stays on one filesystem.
+/// [`crate::scratch::atomic_write`] stays on one filesystem.
 pub const SCRATCH_DIR_NAME: &str = ".doom-rs-scratch";
 
 /// Namespace used for in-flight atomic writes.
@@ -264,8 +264,8 @@ fn release_best_effort(
 /// Creates a tracked, empty file `name` inside
 /// `<dir>/<instance>/<namespace>/` — `dir` is the scratch root itself —
 /// and returns the handle. The artifact persists until reclaimed by
-/// [`sweep_stale`] or removed by the caller; dropping the handle does
-/// not delete it. Use [`SCRATCH_DIR_NAME`]-style roots (or
+/// [`crate::scratch::sweep_stale`] or removed by the caller; dropping the handle does
+/// not delete it. Use [`crate::scratch::SCRATCH_DIR_NAME`]-style roots (or
 /// [`ScratchDir::default_root`]) so the artifact can be swept later.
 pub struct ScratchTemp;
 

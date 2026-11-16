@@ -24,18 +24,18 @@
 //! every `S_*` index was counted from the `statenum_t` order in `info.h`
 //! (the source has no explicit enumerator values). The state/mobjinfo
 //! tables themselves are **not** in this module — they land with the
-//! info tables. The cast call talks to them through [`CastTables`]:
+//! info tables. The cast call talks to them through [`crate::finale::CastTables`]:
 //! the game layer (or, in tests, a synthetic fixture) implements one
 //! `actor()` and one `state()` method and the entire 1.10 cast logic —
 //! attack cycles, melee/missile alternation, death on key press — runs
 //! on top. The sound remapping table (`switch (st)` in `F_CastTicker`)
-//! is provided as a default [`CastTables::state_sfx`] implementation, so
+//! is provided as a default [`crate::finale::CastTables::state_sfx`] implementation, so
 //! it lives here, next to the logic that uses it.
 //!
 //! The framebuffer is the output; the game layer owns palette
 //! application, wipes (this module only *requests* them via
-//! [`FinaleEvent::ForceWipe`]) and the sound system (via
-//! [`FinaleEvent::Music`]/[`FinaleEvent::Sound`]).
+//! [`crate::finale::FinaleEvent::ForceWipe`]) and the sound system (via
+//! [`crate::finale::FinaleEvent::Music`]/[`crate::finale::FinaleEvent::Sound`]).
 
 use crate::errors::{EngineError, EngineResult};
 use crate::gfx::flat::Flat;
@@ -126,7 +126,7 @@ const S_PAIN_ATK3: usize = 848;
 /// `castorder[]` from `f_finale.c`, in order of appearance.
 /// The `MT_*` value each entry points at in the original enum is not
 /// carried here: the cast call never compares them, it only looks the
-/// actor up in [`CastTables`].
+/// actor up in [`crate::finale::CastTables`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CastActorKind {
     /// `MT_POSSESSED`
@@ -488,7 +488,7 @@ pub struct FinaleInput {
 }
 
 /// The cast call state (`castnum`/`caststate`/`casttics`/... in the
-/// original). Driven through [`CastTables`]; the game layer owns the
+/// original). Driven through [`crate::finale::CastTables`]; the game layer owns the
 /// tables.
 #[derive(Clone, Copy, Debug)]
 pub struct CastCall {

@@ -3,17 +3,17 @@
 //! Ported from the original engine's `r_bsp.c` / `r_main.c` hierarchy. This
 //! module decides *if* and *which columns* of a wall are visible; it never
 //! draws anything. The renderer plugs its output into the `emit` callbacks
-//! and consumes [`traverse_bsp`] for draw order and [`check_bbox`] for
+//! and consumes [`crate::bsp::traverse_bsp`] for draw order and [`crate::bsp::check_bbox`] for
 //! whole-subtree culling.
 //!
 //! Layout:
 //!
-//! - [`clip`] — the `solidsegs` clip list ([`ClipSegList`]) with the solid
+//! - `clip` — the `solidsegs` clip list ([`crate::bsp::ClipSegList`]) with the solid
 //!   and pass-through wall segment clipper.
-//! - [`view`] — view projection: [`ViewState`], [`ViewTables`]
+//! - `view` — view projection: [`crate::bsp::ViewState`], [`crate::bsp::ViewTables`]
 //!   (`view_angle_to_x`, `clip_angle`) and `R_PointToAngle`.
-//! - [`walls`] — line/seg clipping ([`add_line`], [`check_bbox`]).
-//! - [`node`] — point-vs-partition side test and the traversal order.
+//! - `walls` — line/seg clipping ([`crate::bsp::add_line`], [`crate::bsp::check_bbox`]).
+//! - `node` — point-vs-partition side test and the traversal order.
 //!
 //! Points/angles follow the engine's conventions: fixed-point world
 //! coordinates, BAM32 angles ([`crate::tables::Angle`]), wrap-around
@@ -21,7 +21,7 @@
 //! where a non-obvious decision exists only to match the reference.
 //!
 //! Point-vs-divline classification lives in [`crate::math`] (with the same
-//! sign-bit fast path `R_PointOnSide` uses); [`point_on_node_side`] adapts
+//! sign-bit fast path `R_PointOnSide` uses); [`crate::bsp::point_on_node_side`] adapts
 //! it to BSP nodes instead of duplicating the arithmetic here.
 
 mod clip;

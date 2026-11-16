@@ -12,18 +12,18 @@
 //!
 //! | module       | contents                                                 |
 //! |--------------|----------------------------------------------------------|
-//! | [`framebuffer`] | [`IndexedFramebuffer`], screen geometry               |
+//! | `framebuffer` | [`crate::render::IndexedFramebuffer`], screen geometry               |
 //! | [`column`]   | `R_DrawColumn` family: textured/fuzz/low-detail columns |
-//! | [`span`]     | `R_DrawSpan` family: horizontal floor/ceiling spans     |
-//! | [`lighting`] | `zlight`/`scalelight` tables, colormap level selection |
-//! | [`gamma`]    | the five gamma remap tables                             |
-//! | [`planes`]   | visplane bookkeeping (`R_FindPlane`/`R_CheckPlane`)     |
-//! | [`plane`]    | flat span renderer (`R_DrawPlanes`/`R_MapPlane`)      |
-//! | [`textures`] | flat composited wall textures + lazy composite cache    |
-//! | [`wall`]     | `R_StoreWallRange`/`R_RenderSegLoop`/masked segs         |
-//! | [`sprite`]   | `R_InitSprites`/`R_ProjectSprite`/`R_DrawVisSprite`     |
-//! | [`masked`]   | `R_DrawMasked`/`R_DrawSprite`: vissprite sweep          |
-//! | [`sky`]      | the sky column pass (`R_DrawPlanes`' sky branch)        |
+//! | `span`     | `R_DrawSpan` family: horizontal floor/ceiling spans     |
+//! | `lighting` | `zlight`/`scalelight` tables, colormap level selection |
+//! | `gamma`    | the five gamma remap tables                             |
+//! | `planes`   | visplane bookkeeping (`R_FindPlane`/`R_CheckPlane`)     |
+//! | `plane`    | flat span renderer (`R_DrawPlanes`/`R_MapPlane`)      |
+//! | `textures` | flat composited wall textures + lazy composite cache    |
+//! | `wall`     | `R_StoreWallRange`/`R_RenderSegLoop`/masked segs         |
+//! | `sprite`   | `R_InitSprites`/`R_ProjectSprite`/`R_DrawVisSprite`     |
+//! | `masked`   | `R_DrawMasked`/`R_DrawSprite`: vissprite sweep          |
+//! | `sky`      | the sky column pass (`R_DrawPlanes`' sky branch)        |
 
 mod column;
 mod framebuffer;

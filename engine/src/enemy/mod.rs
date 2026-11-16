@@ -7,13 +7,13 @@
 //!
 //! | vanilla source      | where it lives                              |
 //! |---------------------|---------------------------------------------|
-//! | `P_CheckSight` / `P_DivlineSide` / `P_CrossSubsector` / `P_CrossBSPNode` / `P_InterceptVector2` | [`sight`] |
-//! | `P_NoiseAlert` / `P_RecursiveSound` | [`flood`] |
-//! | `P_LookForPlayers` / `P_Move` / `P_TryWalk` / `P_NewChaseDir` / `P_CheckMeleeRange` / `P_CheckMissileRange` + the `DI_*` tables | [`chase`] |
-//! | `P_AimLineAttack` / `P_LineAttack` / `PTR_AimTraverse` / `PTR_ShootTraverse` / `P_SpawnPuff` / `P_SpawnBlood` | [`hitscan`] |
-//! | `P_SpawnMissile` / `P_CheckMissileSpawn` | [`missile`] |
-//! | `P_RadiusAttack` / `PIT_RadiusAttack` | [`radius`] |
-//! | `A_*` monster callbacks (`A_Look`, `A_Chase`, ...) + `EnemyContext` + the state dispatcher | [`action`] |
+//! | `P_CheckSight` / `P_DivlineSide` / `P_CrossSubsector` / `P_CrossBSPNode` / `P_InterceptVector2` | [`crate::enemy::sight`] |
+//! | `P_NoiseAlert` / `P_RecursiveSound` | [`crate::enemy::flood`] |
+//! | `P_LookForPlayers` / `P_Move` / `P_TryWalk` / `P_NewChaseDir` / `P_CheckMeleeRange` / `P_CheckMissileRange` + the `DI_*` tables | [`crate::enemy::chase`] |
+//! | `P_AimLineAttack` / `P_LineAttack` / `PTR_AimTraverse` / `PTR_ShootTraverse` / `P_SpawnPuff` / `P_SpawnBlood` | [`crate::enemy::hitscan`] |
+//! | `P_SpawnMissile` / `P_CheckMissileSpawn` | [`crate::enemy::missile`] |
+//! | `P_RadiusAttack` / `PIT_RadiusAttack` | [`crate::enemy::radius`] |
+//! | `A_*` monster callbacks (`A_Look`, `A_Chase`, ...) + `EnemyContext` + the state dispatcher | [`crate::enemy::action`] |
 //!
 //! The `A_*` names are kept lowercase (`a_look`, `a_chase`, ...) so they
 //! stay greppable against the original source without tripping the
@@ -23,9 +23,9 @@
 //!
 //! The store reports the `A_*` actions a state chain would fire, in order,
 //! but does not run them (see [`crate::mobj`] module docs). This module
-//! runs them: [`action::set_mobj_state_and_run_actions`] wraps
+//! runs them: [`crate::enemy::action::set_mobj_state_and_run_actions`] wraps
 //! [`crate::mobj::MobjStore::set_mobj_state`] and dispatches every reported
-//! action through [`action::dispatch_action`], recursing through nested
+//! action through [`crate::enemy::action::dispatch_action`], recursing through nested
 //! state changes the way vanilla recursion does. Handlers that find their
 //! actor gone (removed earlier in the same chain or by an earlier action in
 //! the same dispatch round) simply bail out instead of dereferencing a
@@ -45,14 +45,14 @@
 //!
 //! | vanilla global              | where it lives now                    |
 //! |-----------------------------|---------------------------------------|
-//! | `braintargets` / `numbraintargets` / `braintargeton` / static `easy` | [`BrainState`] |
-//! | sector `soundtarget` / `validcount` / `soundtraversed` | [`flood::SoundFlood`] |
-//! | `xspeed[]` / `yspeed[]` / `oppposite[]` / `diags[]` | [`chase`] module tables |
-//! | `linetarget` / `shootthing` / `shootz` / `la_damage` / `attackrange` / `aimslope` / `topslope` / `bottomslope` | locals of [`hitscan`] |
+//! | `braintargets` / `numbraintargets` / `braintargeton` / static `easy` | [`crate::enemy::BrainState`] |
+//! | sector `soundtarget` / `validcount` / `soundtraversed` | [`crate::enemy::flood::SoundFlood`] |
+//! | `xspeed[]` / `yspeed[]` / `oppposite[]` / `diags[]` | [`crate::enemy::chase`] module tables |
+//! | `linetarget` / `shootthing` / `shootz` / `la_damage` / `attackrange` / `aimslope` / `topslope` / `bottomslope` | locals of [`crate::enemy::hitscan`] |
 //! | `viletryx` / `viletryy` / `corpsehit` / `vileobj` | locals of `a_vile_chase` |
-//! | `sightzstart` / `topslope` / `bottomslope` / `strace` / `t2x` / `t2y` / `validcount` | locals of [`sight::check_sight`] |
-//! | `TRACEANGLE` | [`action::TRACEANGLE`] |
-//! | `gameskill` / `fastparm` / `netgame` / `gamemode` / `gameepisode` / `gamemap` / `playeringame[]` | [`GameRules`] and the players slice |
+//! | `sightzstart` / `topslope` / `bottomslope` / `strace` / `t2x` / `t2y` / `validcount` | locals of [`crate::enemy::sight::check_sight`] |
+//! | `TRACEANGLE` | [`crate::enemy::action::TRACEANGLE`] |
+//! | `gameskill` / `fastparm` / `netgame` / `gamemode` / `gameepisode` / `gamemap` / `playeringame[]` | [`crate::enemy::GameRules`] and the players slice |
 //!
 //! `playeringame[i]` has no dedicated flag on [`crate::player::Player`]; it
 //! is derived as `players.get(i).map(|p| p.mo.is_some())` — a player is in
@@ -65,14 +65,14 @@
 //! ## Sounds
 //!
 //! No sound is played from here. Everything the original started with
-//! `S_StartSound` comes out as a [`GameEvent::Sound`] (`actor: None` is the
+//! `S_StartSound` comes out as a [`crate::enemy::GameEvent::Sound`] (`actor: None` is the
 //! vanilla `S_StartSound(NULL, ...)` full-volume boss channel), which the
 //! game layer feeds to the audio system.
 //!
 //! ## Known gap: deathstate actions from in-flight missile explosions
 //!
 //! When a missile is destroyed by the *thinker* loop, the gameplay layer
-//! drives the transition through [`action::set_mobj_state_and_run_actions`]
+//! drives the transition through [`crate::enemy::action::set_mobj_state_and_run_actions`]
 //! and everything works. The one corner that doesn't: a missile destroyed
 //! inside `movement::xy_movement` (wall hit / floor clamp mid-flight)
 //! goes through `movement::explode_missile`, which sets the missile's
@@ -80,8 +80,8 @@
 //! that action is `A_Explode` itself, so a cyberdemon rocket that hits a
 //! wall mid-flight splashes nothing in this build.
 //!
-//! The enemy-layer spawn path ([`missile::check_missile_spawn`]) explodes
-//! through [`missile::explode_missile_dispatch`] instead and dispatches the
+//! The enemy-layer spawn path ([`crate::enemy::missile::check_missile_spawn`]) explodes
+//! through [`crate::enemy::missile::explode_missile_dispatch`] instead and dispatches the
 //! actions correctly; the in-flight path lives in the movement layer and
 //! is out of this module's reach. The one-line fix for the movement owner
 //! is to forward the `SetMobjStateReport::actions` that
@@ -134,7 +134,7 @@ pub const MISSILERANGE: Fixed = Fixed::from_raw(32 * 64 * FRACUNIT);
 
 /// Side effects the AI produces that the gameplay layer must apply.
 ///
-/// Sounds go out as [`GameEvent::Sound`]; damage goes out as
+/// Sounds go out as [`crate::enemy::GameEvent::Sound`]; damage goes out as
 /// [`GameEvent::Damage`]; anything the movement layer emits internally is
 /// forwarded verbatim inside [`GameEvent::Move`]. Boss/door/floor triggers
 /// and the level exit are plain variants.

@@ -2,7 +2,7 @@
 //! `PIT_CheckThing`, `PIT_StompThing`, `P_CheckPosition`, `P_TryMove`,
 //! `P_TeleportMove`) and `P_LineOpening` from `p_maputl.c`.
 //!
-//! Everything the original called `tm*` lives in [`CheckState`], created
+//! Everything the original called `tm*` lives in `CheckState`, created
 //! fresh per call; [`MoveReport`] is what the caller sees. Things are
 //! checked before lines, exactly like vanilla — a mobj can pick up a
 //! special on the same tic it is otherwise stopped by a wall.

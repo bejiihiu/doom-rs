@@ -36,7 +36,7 @@ pub struct PreloadReport {
     /// Number of distinct sfx entries loaded (non-linked).
     pub loaded: usize,
     /// Sfx whose own lump was missing and which fell back to
-    /// [`FALLBACK_LUMP`].
+    /// `FALLBACK_LUMP`.
     pub fell_back: Vec<SfxId>,
 }
 

@@ -5,7 +5,7 @@
 //!
 //! What is here:
 //!
-//! * the **state machine** — [`Menu`] tracks the current [`MenuLevel`],
+//! * the **state machine** — [`crate::menu::Menu`] tracks the current [`crate::menu::MenuLevel`],
 //!   the cursor (`itemOn`), the `lastOn` per level, the skull cursor
 //!   animation (`M_Ticker`), wraps the cursor around at the ends and
 //!   skips the spacer slots, exactly like `M_Responder`;
@@ -22,14 +22,14 @@
 //! * **rendering** — all patches are drawn with the vanilla layout
 //!   (`M_DrawOptions`, `M_DrawSound`, ...) with the HUD font for
 //!   text; the skull cursor alternates every 8 tics;
-//! * **cheat codes** — [`CheatTable`] ports the scrambled sequences
-//!   from `st_stuff.c`/`am_map.c` and emits plain-data [`CheatEvent`]s
+//! * **cheat codes** — [`crate::menu::CheatTable`] ports the scrambled sequences
+//!   from `st_stuff.c`/`am_map.c` and emits plain-data [`crate::menu::CheatEvent`]s
 //!   instead of touching the player;
-//! * the **`F`-key entry points** — [`Menu::open_help`],
-//!   [`Menu::open_save`], [`Menu::open_load`], [`Menu::open_sound`],
-//!   [`Menu::toggle_detail`], [`Menu::toggle_messages`],
-//!   [`Menu::end_game`], [`Menu::quit_prompt`], [`Menu::quick_save`] and
-//!   [`Menu::quick_load`] — the hooks `M_Responder` binds to F1..F10.
+//! * the **`F`-key entry points** — [`crate::menu::Menu::open_help`],
+//!   [`crate::menu::Menu::open_save`], [`crate::menu::Menu::open_load`], [`crate::menu::Menu::open_sound`],
+//!   [`crate::menu::Menu::toggle_detail`], [`crate::menu::Menu::toggle_messages`],
+//!   [`crate::menu::Menu::end_game`], [`crate::menu::Menu::quit_prompt`], [`crate::menu::Menu::quick_save`] and
+//!   [`crate::menu::Menu::quick_load`] — the hooks `M_Responder` binds to F1..F10.
 //!
 //! Deliberately not here:
 //!
@@ -38,7 +38,7 @@
 //! * gamma cycling (F11) — a video-layer concern, not the menu;
 //! * reading savegame descriptions from disk (`M_ReadSaveStrings`) —
 //!   the game layer scans the directory and hands the menu a
-//!   [`SaveSlotInfo`] table with [`Menu::set_save_names`];
+//!   [`crate::menu::SaveSlotInfo`] table with [`crate::menu::Menu::set_save_names`];
 //! * devparm screenshots (F1 in devparm builds);
 //! * the `M_DrawEmptyCell`/`M_DrawSelCell` helpers — dead code in the
 //!   original, never ported;
@@ -46,9 +46,9 @@
 //!   the IWAD ships (`HELP`/`HELP1`/`HELP2`/`CREDIT`), full screen.
 //!
 //! Everything the menu needs from the outside comes through
-//! [`MenuContext`]; everything the game needs out of it comes out as
-//! [`MenuEvent`] / [`MenuSound`]. The quit-message nag picker uses the
-//! `gametic` value passed to [`Menu::tick`].
+//! [`crate::menu::MenuContext`]; everything the game needs out of it comes out as
+//! [`crate::menu::MenuEvent`] / [`crate::menu::MenuSound`]. The quit-message nag picker uses the
+//! `gametic` value passed to [`crate::menu::Menu::tick`].
 
 mod cheat;
 mod levels;

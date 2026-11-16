@@ -2,7 +2,7 @@
 
 File-by-file disposition of the original C source tree into the new Rust
 engine. Target modules live in the `doom-engine` library crate
-(`crates/engine/`, crate name `doom-engine`, lib name `doom_engine`).
+(`engine/`, crate name `doom-engine`, lib name `doom_engine`).
 
 Columns: **Original file** | **Target module** | **Decision / notes**.
 
@@ -230,11 +230,11 @@ one group.
 
 ## Key decisions carried into the port
 
-- **Workspace layout**: virtual workspace — `crates/engine` (library `doom_engine`),
-  `crates/doom-rs` (binary shell), `crates/tools/{wad-inspector,asset-inspector,demo-analyzer}`.
+- **Workspace layout**: virtual workspace — `engine/` (library `doom_engine`),
+  `doom-rs/` (binary shell), `tools/{wad-inspector,asset-inspector,demo-analyzer}`.
   Tools are workspace members, path-depend on `doom-engine`.
 - **winit + softbuffer** for window and present; **cpal** for audio output;
-  **criterion** for benchmarks. (Orb: see `docs/architecture.md` §14.)
+  **criterion** for benchmarks. (See `docs/architecture.md` §14.)
 - **Resource loading** (precache of textures/flats/sprites/colormaps at level
   start) is the only background job; engine stays synchronous and deterministic,
   loading happens at the shell boundary and joins before play.

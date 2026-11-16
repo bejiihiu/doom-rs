@@ -3,7 +3,7 @@
 //! Port of `m_argv.c` plus the vanilla command-line keys used by
 //! `d_main.c` (`-iwad`, `-file`, `-warp`, ...). The original scans `myargv`
 //! with `M_CheckParm` (case-insensitive, starting at index 1); we do one
-//! structured pass instead and hand back a typed [`EngineArgs`].
+//! structured pass instead and hand back a typed [`crate::args::EngineArgs`].
 //!
 //! Behavior notes, mirroring vanilla where it makes sense:
 //!
@@ -27,7 +27,7 @@
 //!   and we do not invent one: explicit unicast node addresses are the
 //!   only way to set up a net game.
 //! - Unknown `-keys` (and stray bare tokens) are collected into
-//!   [`EngineArgs::unknown`] with a warning, not an error — they are
+//!   [`crate::args::EngineArgs::unknown`] with a warning, not an error — they are
 //!   reported so typos are debuggable, but they must not crash the game.
 //!
 //! Unlike vanilla, a key that needs a value but gets none (or a value that

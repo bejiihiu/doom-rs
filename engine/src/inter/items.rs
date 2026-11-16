@@ -330,7 +330,9 @@ pub fn touch_special_thing(ctx: &mut InterContext<'_>, special: ThinkerId, touch
         return;
     };
     let Some(special_mobj) = ctx.store.mobj(special) else {
-        tracing::warn!("P_TouchSpecialThing: stale special handle");
+        // already consumed earlier this tic (double substep or same-frame
+        // pickups) — nothing left to react to
+        tracing::debug!("P_TouchSpecialThing: stale special handle");
         return;
     };
 

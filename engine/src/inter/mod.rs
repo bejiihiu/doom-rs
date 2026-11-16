@@ -1,16 +1,16 @@
 //! Interactions: the `p_inter.c` half of the gameplay layer.
 //!
 //! This module owns what happens when things collide with things: damage
-//! ([`damage_mobj`]), death ([`kill_mobj`]) and the pickup pass
-//! ([`touch_special_thing`]). The tables that drive it (`maxammo` /
+//! ([`crate::inter::damage_mobj`]), death ([`crate::inter::kill_mobj`]) and the pickup pass
+//! ([`crate::inter::touch_special_thing`]). The tables that drive it (`maxammo` /
 //! `clipammo` / `BONUSADD` in the original) live here too.
 //!
 //! | vanilla (`p_inter.c`)        | where it lives                        |
 //! |------------------------------|---------------------------------------|
-//! | `P_GiveAmmo` / `P_GiveWeapon` / `P_GiveBody` / `P_GiveArmor` / `P_GiveCard` / `P_GivePower` | [`items`] |
-//! | `P_TouchSpecialThing`        | [`items`]                             |
-//! | `P_DamageMobj`               | [`damage`]                            |
-//! | `P_KillMobj`                 | [`damage`]                            |
+//! | `P_GiveAmmo` / `P_GiveWeapon` / `P_GiveBody` / `P_GiveArmor` / `P_GiveCard` / `P_GivePower` | `crate::inter::items` |
+//! | `P_TouchSpecialThing`        | `crate::inter::items`                             |
+//! | `P_DamageMobj`               | `crate::inter::damage`                            |
+//! | `P_KillMobj`                 | `crate::inter::damage`                            |
 //!
 //! `d_items.c` only ships `weaponinfo[]`, the table that the weapon state
 //! machines drive; it is already ported as [`crate::weapons::WEAPON_INFO`]
@@ -21,28 +21,28 @@
 //! `p_inter.c` leans on file-scope globals (`gameskill`, `netgame`,
 //! `deathmatch`, `players[]`, `consoleplayer`, `automapactive`,
 //! `playeringame`, ...). They become explicit parameters, bundled into
-//! [`InterContext`]. The game loop builds one and threads it through every
+//! [`crate::inter::InterContext`]. The game loop builds one and threads it through every
 //! call, the same way [`crate::enemy::EnemyContext`] does for the AI layer.
 //!
-//! `deathmatch` travels as [`DeathmatchMode`] (`Off`/`Duel`/`Alt`, the
+//! `deathmatch` travels as [`crate::args::DeathmatchMode`] (`Off`/`Duel`/`Alt`, the
 //! vanilla `0`/`1`/`2`); `consoleplayer` as the player index;
 //! `automapactive` as a plain bool (vanilla `AM_Stop` is an event here).
 //!
 //! ## Side effects
 //!
 //! Sounds, the weapon-drop on player death and the automap stop come out
-//! as plain-data [`InterEvent`]s. The A_* callbacks the deathstate chain
+//! as plain-data [`crate::inter::InterEvent`]s. The A_* callbacks the deathstate chain
 //! fires (`A_Scream`, `A_BossDeath`, `A_Fall`, ...) run through the enemy
 //! layer's dispatcher, whose output goes into the *shared*
-//! [`enemy::GameEvent`] channel ([`InterContext::game_events`]) — that is
+//! [`crate::enemy::GameEvent`] channel ([`crate::inter::InterContext::game_events`]) — that is
 //! the vec the game loop drains for the whole gameplay layer.
 //!
 //! | vanilla                    | where it goes                       |
 //! |----------------------------|-------------------------------------|
-//! | `S_StartSound(NULL, sfx)`  | [`InterEvent::Sound`] (NULL actor)  |
-//! | `P_DropWeapon(player)`     | [`InterEvent::DropWeapon`]          |
-//! | `AM_Stop()`                | [`InterEvent::StopAutomap`]         |
-//! | `P_SetMobjState` actions   | [`enemy::GameEvent`] via the dispatcher |
+//! | `S_StartSound(NULL, sfx)`  | [`crate::inter::InterEvent::Sound`] (NULL actor)  |
+//! | `P_DropWeapon(player)`     | [`crate::inter::InterEvent::DropWeapon`]          |
+//! | `AM_Stop()`                | [`crate::inter::InterEvent::StopAutomap`]         |
+//! | `P_SetMobjState` actions   | [`crate::enemy::GameEvent`] via the dispatcher |
 //!
 //! `P_DropWeapon` is an event because the weapon overlay machinery lives in
 //! the weapons layer; `AM_Stop` is an event because the automap state lives
@@ -115,7 +115,7 @@ pub const BASE_THRESHOLD: i32 = 100;
 /// Sounds go out NULL-actor (vanilla `S_StartSound(NULL, sfx)`); the weapon
 /// drop and the automap stop are forwarded to the layers that own those
 /// machines. The A_* output of the deathstate chain rides the shared
-/// [`enemy::GameEvent`] channel instead — see [`InterContext::game_events`].
+/// [`crate::enemy::GameEvent`] channel instead — see [`crate::inter::InterContext::game_events`].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum InterEvent {
     /// Vanilla `S_StartSound(NULL, sfx)`: pickup sounds at full volume.
@@ -136,7 +136,7 @@ pub enum InterEvent {
 
 /// Everything the inter layer is allowed to touch.
 ///
-/// Mirrors [`enemy::EnemyContext`] field for field, plus the three vanilla
+/// Mirrors [`crate::enemy::EnemyContext`] field for field, plus the three vanilla
 /// globals the AI layer does not need: `deathmatch` (weapon placement rules),
 /// `consoleplayer` (pickup sounds, automap death check) and `automapactive`.
 /// One of these is built per dispatch by the gameplay layer.

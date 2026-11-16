@@ -3,7 +3,7 @@
 //! DOOM's WAD archives store every multi-byte field little-endian, and the
 //! lumps map straight onto flat C structs. This module is the safe boundary
 //! between raw lump bytes and typed values: every access is bounds-checked
-//! and returns [`EngineResult`] instead of panicking on corrupt input.
+//! and returns [`crate::errors::EngineResult`] instead of panicking on corrupt input.
 //!
 //! Reads copy out of the slice; no references into it are kept.
 

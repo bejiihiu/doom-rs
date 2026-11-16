@@ -9,11 +9,11 @@
 //! | vanilla source               | where it lives                     |
 //! |------------------------------|------------------------------------|
 //! | `P_SetPsprite` / `P_MovePsprites` / `P_SetupPsprites` / `P_BringUpWeapon` / `P_DropWeapon` | this module |
-//! | `P_CheckAmmo` / `P_FireWeapon` | [`check_ammo`], [`fire_weapon`]  |
-//! | `P_CalcSwing`                 | [`calc_swing`]                     |
-//! | `P_BulletSlope` / `P_GunShot` / `P_SpawnPlayerMissile` | [`spawn_player_missile`] (bullet slope is a helper there) |
-//! | `weaponinfo[]` (`d_items.c`) | [`WEAPON_INFO`]                    |
-//! | `A_WeaponReady`, `A_Lower`, `A_Raise`, `A_GunFlash`, `A_Punch`, `A_Saw`, `A_FirePistol`, `A_FireShotgun`, `A_FireShotgun2`, `A_FireCGun`, `A_FireMissile`, `A_FirePlasma`, `A_FireBFG`, `A_ReFire`, `A_CheckReload`, `A_Light0..2`, `A_BFGsound`, `A_OpenShotgun2`, `A_LoadShotgun2`, `A_CloseShotgun2` | [`actions`] |
+//! | `P_CheckAmmo` / `P_FireWeapon` | [`crate::weapons::check_ammo`], [`crate::weapons::fire_weapon`]  |
+//! | `P_CalcSwing`                 | [`crate::weapons::calc_swing`]                     |
+//! | `P_BulletSlope` / `P_GunShot` / `P_SpawnPlayerMissile` | [`crate::weapons::spawn_player_missile`] (bullet slope is a helper there) |
+//! | `weaponinfo[]` (`d_items.c`) | [`crate::weapons::WEAPON_INFO`]                    |
+//! | `A_WeaponReady`, `A_Lower`, `A_Raise`, `A_GunFlash`, `A_Punch`, `A_Saw`, `A_FirePistol`, `A_FireShotgun`, `A_FireShotgun2`, `A_FireCGun`, `A_FireMissile`, `A_FirePlasma`, `A_FireBFG`, `A_ReFire`, `A_CheckReload`, `A_Light0..2`, `A_BFGsound`, `A_OpenShotgun2`, `A_LoadShotgun2`, `A_CloseShotgun2` | `crate::weapons::actions` |
 //!
 //! The `A_*` bodies keep their vanilla names lowercased (`a_fire_pistol`,
 //! ...) for greppability, same convention as the monster layer.
@@ -21,7 +21,7 @@
 //! ## Player state and borrows
 //!
 //! The original threads `player_t*` everywhere. The port keeps that
-//! shape but the players live inside [`EnemyContext`] (the one world
+//! shape but the players live inside [`crate::enemy::EnemyContext`] (the one world
 //! context the gameplay layer builds), so every entry point takes a
 //! `player_index` into `ctx.players` instead of a raw pointer. The
 //! overlay sprites are [`crate::player::PspDef`] slots on the player
@@ -35,8 +35,8 @@
 //!
 //! | vanilla global      | where it lives now                |
 //! |---------------------|-----------------------------------|
-//! | `bulletslope`/`linetarget` | the [`AimOutcome`] that `aim_line_attack` returns; `bullet_slope` threads it by value |
-//! | `swingx`/`swingy`   | [`calc_swing`] returns the pair   |
+//! | `bulletslope`/`linetarget` | the [`crate::enemy::AimOutcome`] that `aim_line_attack` returns; `bullet_slope` threads it by value |
+//! | `swingx`/`swingy`   | [`crate::weapons::calc_swing`] returns the pair   |
 //! | `LOWERSPEED`/`RAISESPEED`/`WEAPONBOTTOM`/`WEAPONTOP`/`BFGCELLS` | the matching constants here |
 //! | `gamemode`          | `game_mode: GameMode` (from `crate::menu`) passed explicitly to everything that branches on it — same pattern as the intermission layer |
 //!

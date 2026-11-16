@@ -609,7 +609,7 @@ pub struct ProjectedSprite {
 }
 
 /// Projects one thing. `spritelights` is the sector's `scalelight` row
-/// (via [`LightTables::scalelight_row`]); `view` carries the projection
+/// (via [`crate::render::lighting::LightTables::scalelight_row`]); `view` carries the projection
 /// constants. Returns `None` when the thing is behind the view, outside
 /// the frustum, off the screen, or has an invalid sprite/frame index
 /// (the original crashed on the last two; we just skip).

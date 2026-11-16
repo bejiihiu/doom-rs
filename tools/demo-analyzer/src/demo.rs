@@ -25,7 +25,7 @@ use doom_engine::player::TicCmd;
 /// the same layout.
 pub const DEMO_VERSION_109: u8 = 109;
 /// Header length in bytes: version, skill, episode, map, deathmatch,
-/// respawn, fast, nomonsters, consoleplayer, playeringame[4].
+/// respawn, fast, nomonsters, consoleplayer, `playeringame[4]`.
 pub const DEMO_HEADER_LEN: usize = 13;
 /// Vanilla `MAX_DEMO_SIZE` (`0x20000`): the recording buffer's capacity.
 /// The playback side has no size check, so a larger demo is playable;

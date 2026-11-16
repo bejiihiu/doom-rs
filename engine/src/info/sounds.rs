@@ -108,7 +108,7 @@ pub enum MusicId {
     mus_dm2int = 67,
 }
 
-/// Vanilla musicenum_t values in table order. ALL_MUSIC[i] is
+/// Vanilla musicenum_t values in table order. `ALL_MUSIC[i]` is
 /// the music id whose vanilla index is i - the game layer uses this
 /// to resolve raw track numbers (mus_runnin + n) without unsafe casts.
 pub const ALL_MUSIC: [MusicId; MUSIC_COUNT] = [

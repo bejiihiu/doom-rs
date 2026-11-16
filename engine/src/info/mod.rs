@@ -2,16 +2,16 @@
 //! and `p_switch.c`. Everything here is plain static data, laid out exactly
 //! like the vanilla tables so the mapping back to the C source stays 1:1.
 //!
-//! - [`sprites`] - `spritenum_t` and `sprnames`.
-//! - [`states`] - `statenum_t`, the full `states[]` table (frame/tics/action
-//!   per thing state) and [`states::FF_FULLBRIGHT`]. Action bodies are not
+//! - `sprites` - `spritenum_t` and `sprnames`.
+//! - `states` - `statenum_t`, the full `states[]` table (frame/tics/action
+//!   per thing state) and [`crate::info::FF_FULLBRIGHT`]. Action bodies are not
 //!   here; `StateAction` only records which vanilla `A_*` function each
 //!   state carries - the gameplay modules wire those up.
-//! - [`sounds`] - `sfxenum_t`/`musicenum_t`, the `S_sfx[]`/`S_music[]`
+//! - `sounds` - `sfxenum_t`/`musicenum_t`, the `S_sfx[]`/`S_music[]`
 //!   tables and the mixing constants from `s_sound.c`.
-//! - [`mobjinfo`] - `mobjtype_t`, the full `mobjinfo[]` table (spawn health,
+//! - `mobjinfo` - `mobjtype_t`, the full `mobjinfo[]` table (spawn health,
 //!   states, sounds, radii, `MF_*` flags, ...).
-//! - [`switches`] - the `alphSwitchList[]` on/off texture pairs
+//! - `switches` - the `alphSwitchList[]` on/off texture pairs
 //!   (`P_InitSwitchList` resolves them to texture indices at startup).
 //!
 //! Runtime scratch that vanilla kept inside the table structs (`lumpnum`,

@@ -11,7 +11,7 @@
 //! * the **walls** — every linedef is offered to a Cohen-Sutherland
 //!   clip against the window and drawn with vanilla's Bresenham.
 //!   Despite what the blockmap docs of other ports suggest, 1.10 does
-//!   **not** cull lines through the blockmap: [`draw::render_automap`]
+//!   **not** cull lines through the blockmap: [`crate::automap::render_automap`]
 //!   iterates every linedef and lets the clip reject off-screen ones,
 //!   exactly like the original.
 //! * line colors — 1-sided walls, teleporters (`special == 39`), secret
@@ -28,14 +28,14 @@
 //! * the **seen set** — vanilla tracks seen lines through the
 //!   `ML_MAPPED` bit on the linedef itself. The map port keeps the map
 //!   immutable, so the automap keeps its own bitset in
-//!   [`AutomapState::mark_lines_seen`], which the renderer feeds from
+//!   [`crate::automap::AutomapState::mark_lines_seen`], which the renderer feeds from
 //!   its `take_mapped_linedefs` output.
 //! * the **`iddt` cheat** — cycles the reveal level `0 -> 1 -> 2 -> 0`:
 //!   `0` draws only seen lines, `1` draws everything (secret lines keep
 //!   their special color), `2` additionally draws every thing in the
 //!   level as a thin triangle. The `iddt` key sequence itself lives in
 //!   the menu cheat table ([`crate::menu::CheatTable`]); the game layer
-//!   wires `CheatEvent::Automap` to [`AutomapState::cycle_iddt`].
+//!   wires `CheatEvent::Automap` to [`crate::automap::AutomapState::cycle_iddt`].
 //!
 //! Layout constants, the palette indices and the window size are
 //! byte-for-byte ports of the `#define`s in `am_map.c`. There is no

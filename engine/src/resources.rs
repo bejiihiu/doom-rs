@@ -10,9 +10,9 @@
 //! never had: typed caches with lazy decoding and explicit statistics. Raw
 //! lump bytes are always borrowed from the owning WADs — nothing is copied or
 //! cached — and decoded values (palettes, headers, lookup tables, …) are
-//! cached once per (type, lump) pair and shared as [`Arc<T>`].
+//! cached once per (type, lump) pair and shared as [`Arc<T>`](std::sync::Arc).
 //!
-//! Ownership: [`ResourceManager`] owns the [`WadSet`] outright. Renderer and
+//! Ownership: [`crate::resources::ResourceManager`] owns the [`crate::wad::WadSet`] outright. Renderer and
 //! game code receive `&ResourceManager` and never see the underlying set;
 //! everything the set can do (name lookup, stacking order, namespace
 //! markers) is delegated here.
@@ -252,7 +252,7 @@ impl ResourceManager {
     /// The cached value for `lump_index`, decoding it on first use.
     ///
     /// Decoding runs [`decoder`](Self) on the raw lump bytes, stores the
-    /// result in the cache for `T` and returns a shared [`Arc<T>`]. Every
+    /// result in the cache for `T` and returns a shared [`Arc<T>`](std::sync::Arc). Every
     /// later call for the same pair returns the stored `Arc` — the decoder
     /// is not called again. Raw-byte access through [`lump_data`](Self::lump_data)
     /// does not touch this cache.

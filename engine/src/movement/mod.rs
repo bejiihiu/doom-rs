@@ -1,28 +1,28 @@
 //! Movement and collision, ported from `p_map.c`, `p_maputl.c` and the
 //! movement half of `p_mobj.c` (`P_XYMovement`/`P_ZMovement`).
 //!
-//! The world model is the engine's: a [`map::Map`](crate::map::Map) for
+//! The world model is the engine's: a [`map::Map`] for
 //! geometry and blockmap, an [`MobjStore`](crate::mobj::MobjStore) for the
 //! actors. Everything the original kept in file-scope globals becomes an
-//! explicit [`MoveContext`] parameter, so re-entrant calls cannot leak
+//! explicit [`crate::movement::MoveContext`] parameter, so re-entrant calls cannot leak
 //! state into each other:
 //!
 //! | vanilla global      | where it lives now                     |
 //! |---------------------|----------------------------------------|
-//! | `tmthing`/`tmflags`/`tmx`/`tmy`/`tmbbox` | locals of the check, carried in [`MoveReport`] |
-//! | `tmfloorz`/`tmceilingz`/`tmdropoffz`    | [`MoveReport`] fields                |
-//! | `floatok`           | [`MoveReport::floatok`]                |
-//! | `ceilingline`       | [`MoveReport::ceiling_line`] (linedef index) |
-//! | `spechit`/`numspechit` | [`MoveReport::specials`] (Vec, no 8-entry cap) |
+//! | `tmthing`/`tmflags`/`tmx`/`tmy`/`tmbbox` | locals of the check, carried in [`crate::movement::MoveReport`] |
+//! | `tmfloorz`/`tmceilingz`/`tmdropoffz`    | [`crate::movement::MoveReport`] fields                |
+//! | `floatok`           | [`crate::movement::MoveReport::floatok`]                |
+//! | `ceilingline`       | [`crate::movement::MoveReport::ceiling_line`] (linedef index) |
+//! | `spechit`/`numspechit` | [`crate::movement::MoveReport::specials`] (Vec, no 8-entry cap) |
 //! | `validcount`        | a per-call `HashSet<usize>` of seen linedefs |
 //! | `intercepts[]`      | a growing `Vec<Intercept>`; no `MAXINTERCEPTS` UB |
-//! | `trace`/`earlyout`/`ptflags` | parameters of [`traverse_path`]       |
+//! | `trace`/`earlyout`/`ptflags` | parameters of [`crate::movement::traverse_path`]       |
 //!
 //! Two deliberate calls, same spirit as elsewhere in the engine:
 //!
 //! - `P_DamageMobj` / `P_TouchSpecialThing` live in `p_inter.c` and are not
 //!   ported yet. The collision code never calls out into game logic directly;
-//!   instead it pushes [`MoveEvent`]s onto the report and the gameplay layer
+//!   instead it pushes [`crate::movement::MoveEvent`]s onto the report and the gameplay layer
 //!   (damage, pickups, line specials, sounds) dispatches them. The RNG is
 //!   still consumed exactly where vanilla consumed it, so demo replay stays
 //!   bit-identical once the dispatcher lands.
