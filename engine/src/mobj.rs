@@ -1074,7 +1074,8 @@ impl MobjStore {
 
     /// Vanilla `P_SetThingPosition` minus the caller-discipline
     /// (unlinking first); unlinks defensively before linking.
-    fn set_thing_position(&mut self, map: &Map, id: ThinkerId) {
+    /// `pub(crate)` so the movement code can re-link things after a move.
+    pub(crate) fn set_thing_position(&mut self, map: &Map, id: ThinkerId) {
         self.unset_thing_position(id);
 
         let Some(Thinker::Mobj(mobj)) = self.registry.get(id) else {
@@ -1130,8 +1131,9 @@ impl MobjStore {
         }
     }
 
-    /// Vanilla `P_UnsetThingPosition`.
-    fn unset_thing_position(&mut self, id: ThinkerId) {
+    /// Vanilla `P_UnsetThingPosition`. `pub(crate)` for the movement
+    /// code, same reason as [`Self::set_thing_position`].
+    pub(crate) fn unset_thing_position(&mut self, id: ThinkerId) {
         let Some(Thinker::Mobj(mobj)) = self.registry.get(id) else {
             return;
         };

@@ -64,6 +64,9 @@
 //! - `info` - the game data tables the gameplay layer drives: `states[]`,
 //!   `mobjinfo[]`, `sprnames`, `S_sfx[]`/`S_music[]` and the switch
 //!   on/off texture pairs, ported from `info.c`/`sounds.c`/`p_switch.c`.
+//! - `movement` - movement and collision: `P_CheckPosition`/`P_TryMove`,
+//!   the slide move, `P_PathTraverse` and the momentum ticks from
+//!   `p_mobj.c`, ported from `p_map.c`/`p_maputl.c`/`p_mobj.c`.
 //! - `audio` — sound effects and music playback.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
@@ -258,6 +261,17 @@ pub mod bsp;
 /// for a map-unit box and yield linedef indices in vanilla traversal
 /// order, duplicates included.
 pub mod map;
+
+/// Movement and collision: `p_map.c`, `p_maputl.c` and the movement half of
+/// `p_mobj.c`.
+///
+/// The `tm*` globals become [`movement::MoveContext`]; [`movement::try_move`]
+/// is the position commit point, [`movement::slide_move`] handles wall
+/// sliding, [`movement::traverse_path`] is the shared line/thing trace, and
+/// [`movement::xy_movement`] / [`movement::z_movement`] are the momentum
+/// ticks. Side effects the gameplay layer owns (damage, pickups, line
+/// specials, sounds) come back as plain-data [`movement::MoveEvent`]s.
+pub mod movement;
 
 pub mod config;
 pub mod errors;
