@@ -377,7 +377,7 @@ pub mod audio;
 /// Startup configuration: the ported `doom.cfg` system.
 ///
 /// [`config::DoomConfig`] stores settings as raw strings on disk (so
-/// unknown keys survive a round trip), plus the plain `Config`
+/// unknown keys survive a round trip), plus the plain [`config::Config`]
 /// (engine-level) and validation types.
 pub mod config;
 
@@ -405,7 +405,8 @@ pub mod math;
 /// `tables.c`/`tables.h`.
 ///
 /// The sine/cosine/tangent LUTs are byte-for-byte the original's;
-/// [`tables::Angle`] is the 32-bit wrapper used for all headings.
+/// [`tables::Angle`] is the 32-bit wrapper used for all headings
+/// ([`tables::Angle::ANG180`] and friends).
 pub mod tables;
 
 /// Music: the DMX MUS format and OPL2 FM synthesis, in-process.
