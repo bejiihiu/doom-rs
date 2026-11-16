@@ -18,10 +18,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            archive: dist/doom-rs-*.tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            archive: dist/doom-rs-*.zip
           - os: macos-latest
             target: aarch64-apple-darwin
+            archive: dist/doom-rs-*.tar.gz
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -79,5 +82,4 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            dist/doom-rs-*.tar.gz
-            dist/doom-rs-*.zip
+            ${{ matrix.archive }}
