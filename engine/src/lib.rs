@@ -41,6 +41,16 @@
 //!   `m_menu.c`/`m_cheat.c` (includes the `d_englsh.h` prompt strings).
 //! - `automap` — the automap: follow/zoom/marks, the map window,
 //!   line colors, seen-line tracking, ported from `am_map.c`.
+//! - `wipe` — the screen melt transition, ported from `f_wipe.c`
+//!   (the color fade type is deliberately not ported; the game never
+//!   used it).
+//! - `finale` — the end-of-episode finale: typed-out texts, the art
+//!   screens (including the E3 bunny scroll) and the DOOM II MAP30
+//!   cast call, ported from `f_finale.c`.
+//! - `intermission` — the between-maps stat screen: the interactive
+//!   count-up, the episode world map with the "You Are Here" pointer,
+//!   the deathmatch matrix and the animated backgrounds, ported from
+//!   `wi_stuff.c`.
 //! - `audio` — sound effects and music playback.
 //! - `input` — keyboard, mouse and gamepad handling.
 //! - `game` — game state, the tic loop, demo playback and save/load.
@@ -160,6 +170,31 @@ pub mod menu;
 /// [`automap::AutomapResponse`]; the level-name title stays with the
 /// HUD ([`hud::HudState`]).
 pub mod automap;
+
+/// The screen melt transition, ported from `f_wipe.c`.
+///
+/// [`wipe::ScreenWipe`] snapshots the current and the freshly drawn
+/// screen and drips the new frame in column by column (2-pixel columns,
+/// accelerating melt, per-column random delays). Only the melt is
+/// ported — the 8-bit color fade was never used by the game.
+pub mod wipe;
+
+/// The end-of-episode finale, ported from `f_finale.c`.
+///
+/// [`finale::Finale`] is the state machine (typed-out text → art
+/// screen, and the DOOM II MAP30 cast call). The info tables are
+/// injected through [`finale::CastTables`]; music, sounds, wipes and
+/// the world-done decision come out as [`finale::FinaleEvent`]s.
+pub mod finale;
+
+/// The between-maps intermission, ported from `wi_stuff.c`.
+///
+/// [`intermission::Intermission`] owns the stat count-up state machines
+/// (single player / net game / deathmatch), the episode world map and
+/// the animated background. Level names and graphics are decoded
+/// through the resource manager at start; everything the game layer
+/// must do comes out as [`intermission::IntermissionEvent`]s.
+pub mod intermission;
 
 /// BSP tree traversal and wall clipping, ported from `r_bsp.c`/`r_main.c`.
 ///
