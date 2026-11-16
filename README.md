@@ -15,10 +15,11 @@ behave the way the original does. The engine is a library; the windowed
 binary is a thin shell on top of it.
 
 **Status: work in progress.** The engine is feature complete and the test
-suite is green, and the windowed shell builds and opens a 320x200 view.
-It has not yet had an end-to-end run with a real IWAD — that verification
-is in progress. Expect the first real experience to be rough; do not
-delete your original executable.
+suite is green, and the windowed shell builds and is code-reviewed
+against the current winit/softbuffer APIs. It has not yet had an
+end-to-end run with a real IWAD — that verification is in progress.
+Expect the first real experience to be rough; do not delete your
+original executable.
 
 ## Features
 
